@@ -10,11 +10,9 @@
 #define SHIFT           ShiftMask   /* Shift key */
 
 /** generic settings **/
-#define MASTER_SIZE     0.52
-#define SHOW_PANEL      True      /* show panel by default on exec */
-#define TOP_PANEL       True      /* False means panel is on bottom */
-#define PANEL_HEIGHT    18        /* 0 for no space for panel, thus no panel */
-#define DEFAULT_MODE    TILE      /* initial layout/mode: TILE MONOCLE BSTACK GRID FLOAT */
+#define MASTER_SIZE     0.55
+
+#define DEFAULT_MODE    FLOAT      /* initial layout/mode: TILE MONOCLE BSTACK GRID FLOAT */
 #define ATTACH_ASIDE    True      /* False means new window is master */
 #define FOLLOW_WINDOW   False     /* follow the window when moved to a different desktop */
 #define FOLLOW_MOUSE    False     /* focus the window the mouse just entered */
@@ -56,7 +54,6 @@ static const char *menucmd[] = { "dmenu_run", NULL };
  */
 static Key keys[] = {
     /* modifier          key            function           argument */
-    {  MOD1,             XK_b,          togglepanel,       {NULL}},
     {  MOD1,             XK_BackSpace,  focusurgent,       {NULL}},
     {  MOD1|SHIFT,       XK_c,          killclient,        {NULL}},
     {  MOD1,             XK_j,          next_win,          {NULL}},
@@ -90,10 +87,10 @@ static Key keys[] = {
     {  MOD4|SHIFT,       XK_k,          moveresize,        {.v = (int []){   0,   0,   0, -25 }}}, /* height shrink */
     {  MOD4|SHIFT,       XK_l,          moveresize,        {.v = (int []){   0,   0,  25,   0 }}}, /* width grow    */
     {  MOD4|SHIFT,       XK_h,          moveresize,        {.v = (int []){   0,   0, -25,   0 }}}, /* width shrink  */
-       DESKTOPCHANGE(    XK_F1,                             0)
-       DESKTOPCHANGE(    XK_F2,                             1)
-       DESKTOPCHANGE(    XK_F3,                             2)
-       DESKTOPCHANGE(    XK_F4,                             3)
+       DESKTOPCHANGE(    XK_1,                             0)
+       DESKTOPCHANGE(    XK_2,                             1)
+       DESKTOPCHANGE(    XK_3,                             2)
+       DESKTOPCHANGE(    XK_4,                             3)
 };
 
 /**

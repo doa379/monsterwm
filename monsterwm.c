@@ -97,7 +97,6 @@ static void rotate_filled(const Arg *arg);
 static void spawn(const Arg *arg);
 static void swap_master();
 static void switch_mode(const Arg *arg);
-static void togglepanel();
 
 #include "config.h"
 
@@ -130,12 +129,10 @@ typedef struct Client {
  * head - the start of the client list
  * curr - the currently highlighted window
  * prev - the client that previously had focus
- * sbar - the visibility status of the panel/statusbar
  */
 typedef struct {
     int mode, masz, sasz;
     Client *head, *curr, *prev;
-    Bool sbar;
 } Desktop;
 
 /* hidden function prototypes sorted alphabetically */
@@ -1006,7 +1003,7 @@ void setfullscreen(Client *c, Desktop *d, Bool fullscrn) {
     if (fullscrn != c->isfull) XChangeProperty(dis, c->win,
             netatoms[NET_WM_STATE], XA_ATOM, 32, PropModeReplace, (unsigned char*)
             ((c->isfull = fullscrn) ? &netatoms[NET_FULLSCREEN]:0), fullscrn);
-    if (fullscrn) XMoveResizeWindow(dis, c->win, 0, 0, ww, wh + PANEL_HEIGHT);
+    if (fullscrn) XMoveResizeWindow(dis, c->win, 0, 0, ww, wh);
     XSetWindowBorderWidth(dis, c->win, (c->isfull || !d->head->next ? 0:BORDER_WIDTH));
 }
 
@@ -1022,11 +1019,11 @@ void setup(void) {
 
     /* screen width and height */
     ww = XDisplayWidth(dis,  screen);
-    wh = XDisplayHeight(dis, screen) - PANEL_HEIGHT;
+    wh = XDisplayHeight(dis, screen);
 
     /* initialize mode and panel visibility for each desktop */
     for (unsigned int d = 0; d < DESKTOPS; d++)
-        desktops[d] = (Desktop){ .mode = DEFAULT_MODE, .sbar = SHOW_PANEL };
+        desktops[d] = (Desktop){ .mode = DEFAULT_MODE };
 
     /* get color for focused and unfocused client borders */
     win_focus = getcolor(FOCUS, screen);
@@ -1178,16 +1175,7 @@ void switch_mode(const Arg *arg) {
  */
 void tile(Desktop *d) {
     if (!d->head || d->mode == FLOAT) return; /* nothing to arange */
-    layout[d->head->next ? d->mode:MONOCLE](0, TOP_PANEL && d->sbar ? PANEL_HEIGHT:0,
-                                                  ww, wh + (d->sbar ? 0:PANEL_HEIGHT), d);
-}
-
-/**
- * toggle visibility state of the panel/bar
- */
-void togglepanel(void) {
-    desktops[currdeskidx].sbar = !desktops[currdeskidx].sbar;
-    tile(&desktops[currdeskidx]);
+    layout[d->head->next ? d->mode:MONOCLE](0, 0, ww, wh, d);
 }
 
 /**
