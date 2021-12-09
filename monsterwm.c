@@ -528,9 +528,9 @@ void focus(Client *c, Desktop *d) {
     int n = 0, fl = 0, ft = 0;
     for (c = d->head; c; c = c->next, ++n) if (ISFFT(c)) { fl++; if (!c->isfull) ft++; }
     Window w[n];
-    w[(d->curr->isfloat || d->curr->istrans) ? 0:ft] = d->curr->win;
-    for (fl += !ISFFT(d->curr) ? 1:0, c = d->head; c; c = c->next) {
-        XSetWindowBorder(dis, c->win, c == d->curr ? win_focus:win_unfocus);
+    w[(d->curr->isfloat || d->curr->istrans) ? 0 : ft] = d->curr->win;
+    for (fl += !ISFFT(d->curr) ? 1 : 0, c = d->head; c; c = c->next) {
+        XSetWindowBorder(dis, c->win, c == d->curr ? win_focus : win_unfocus);
         /*
          * a window should have borders in any case, except if
          *  - the window is fullscreen
@@ -539,16 +539,16 @@ void focus(Client *c, Desktop *d) {
          *      - it is the only window on screen
          */
         XSetWindowBorderWidth(dis, c->win, c->isfull || (!ISFFT(c) &&
-            (d->mode == MONOCLE || !d->head->next)) ? 0:BORDER_WIDTH);
-        if (c != d->curr) w[c->isfull ? --fl:ISFFT(c) ? --ft:--n] = c->win;
+            (d->mode == MONOCLE || !d->head->next)) ? 0 : BORDER_WIDTH);
+        //XSetWindowBorderWidth(dis, c->win, c->isfull ? 0 : BORDER_WIDTH);
+        if (c != d->curr) w[c->isfull ? --fl : ISFFT(c) ? --ft : --n] = c->win;
         if (CLICK_TO_FOCUS || c == d->curr) grabbuttons(c);
     }
-    XRestackWindows(dis, w, LENGTH(w));
 
+    XRestackWindows(dis, w, LENGTH(w));
     XSetInputFocus(dis, d->curr->win, RevertToPointerRoot, CurrentTime);
     XChangeProperty(dis, root, netatoms[NET_ACTIVE], XA_WINDOW, 32,
                     PropModeReplace, (unsigned char *)&d->curr->win, 1);
-
     XSync(dis, False);
 }
 
@@ -778,9 +778,18 @@ void mousemotion(const Arg *arg) {
 /**
  * monocle aka max aka fullscreen mode/layout
  * each window should cover all the available screen space
- */
+
 void monocle(int x, int y, int w, int h, const Desktop *d) {
     for (Client *c = d->head; c; c = c->next) if (!ISFFT(c)) XMoveResizeWindow(dis, c->win, x, y, w, h);
+}
+*/
+void monocle(int x, int y, int w, int h, const Desktop *d) {
+    Client *c = d->curr;
+    if (!ISFFT(c))
+    {
+        XMoveResizeWindow(dis, c->win, x, y, w, h);
+        /*c->isfull = True;*/
+    }
 }
 
 /**
@@ -1023,7 +1032,7 @@ void setup(void) {
 
     /* initialize mode and panel visibility for each desktop */
     for (unsigned int d = 0; d < DESKTOPS; d++)
-        desktops[d] = (Desktop){ .mode = DEFAULT_MODE };
+        desktops[d] = (Desktop){ .mode = FLOAT };
 
     /* get color for focused and unfocused client borders */
     win_focus = getcolor(FOCUS, screen);
@@ -1160,7 +1169,7 @@ void swap_master(void) {
  *
  * if mode is reselected reset all floating clients
  * if mode is FLOAT set all clients floating
- */
+
 void switch_mode(const Arg *arg) {
     Desktop *d = &desktops[currdeskidx];
     if (d->mode != arg->i) d->mode = arg->i;
@@ -1168,14 +1177,37 @@ void switch_mode(const Arg *arg) {
     if (d->head) { tile(d); focus(d->curr, d); }
     desktopinfo();
 }
+*/
+
+void switch_mode(const Arg *arg) {
+    Desktop *d = &desktops[currdeskidx];
+    d->mode = arg->i;
+    for (Client *c = d->head; c; c = c->next)
+        c->isfloat = False;
+    if (d->head) { /*tile(d);*/ focus(d->curr, d); }
+    d->mode = FLOAT;
+    for (Client *c = d->head; c; c = c->next)
+        c->isfloat = True;
+    desktopinfo();
+}
 
 /**
  * tile clients of the given desktop with the desktop's mode/layout
  * call the tiling handler fucntion taking account the panel height
- */
+
 void tile(Desktop *d) {
-    if (!d->head || d->mode == FLOAT) return; /* nothing to arange */
-    layout[d->head->next ? d->mode:MONOCLE](0, 0, ww, wh, d);
+    if (!d->head || d->mode == FLOAT) return;
+    layout[d->head->next ? d->mode : MONOCLE](0, 0, ww, wh, d);
+}
+*/
+
+void tile(Desktop *d) {
+    if (!d->head || d->mode == FLOAT) return;
+    /*
+    if (!d->head) return;
+    layout[d->head->next ? d->mode : MONOCLE](0, 0, ww, wh, d);
+    */
+    layout[d->mode](0, 0, ww, wh, d);
 }
 
 /**

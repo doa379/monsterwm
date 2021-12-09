@@ -1,5 +1,20 @@
-monsterwm
+TODO
+----
+
+* Maintain monocle state in the case when c->next = c
+* Store client size, pos
+* Restore monocles to last known size
+* Non-imposed Client placement
+* Enumerate/export client + wm positions
+* Integrate dynamic panel
+* Destroy clients on quit (Maintain clients on reload)
+* MM support
+
+
+~~monsterwm~~ mwm
 =========
+
+A fork of monsterwm
 
 → tiny and monstrous!
 ---------------------
