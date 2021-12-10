@@ -1,7 +1,7 @@
-# Makefile for monsterwm - see LICENSE for license and copyright information
+# Makefile for mwm - see LICENSE for license and copyright information
 
 VERSION = cookies-git
-WMNAME  = monsterwm
+WMNAME  = mwm
 
 PREFIX ?= /usr/local
 BINDIR ?= ${PREFIX}/bin
