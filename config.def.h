@@ -29,20 +29,20 @@
  * open applications to specified desktop with specified mode.
  * if desktop is negative, then current is assumed
  */
-static const AppRule rules[] = { \
-    /*  class     desktop  follow  float */
-    { "MPlayer",     3,    True,   False },
-    { "Gimp",        0,    False,  True  },
+static const Rule rules[] = { \
+    /*  class     desktop  follow */
+    { "MPlayer",     3,    True },
+    { "Gimp",        0,    False },
 };
 
 /* helper for spawning shell commands */
-#define SHCMD(cmd) {.com = (const char*[]){"/bin/sh", "-c", cmd, NULL}}
+#define SHCMD(cmd) {.com = (const char*[]){ "/bin/sh", "-c", cmd, NULL }}
 
 /**
  * custom commands
  * must always end with ', NULL };'
  */
-static const char *termcmd[] = { "xterm",     NULL };
+static const char *termcmd[] = { "term",     NULL };
 static const char *menucmd[] = { "dmenu_run", NULL };
 static const char *statuscmd[] = { "cat", STATUSFILE, "|", "dmenu", NULL };
 

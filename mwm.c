@@ -16,13 +16,13 @@
 #define LENGTH(x)       (sizeof(x) / sizeof(*x))
 #define CLEANMASK(mask) (mask & ~(numlockmask | LockMask))
 #define BUTTONMASK      ButtonPressMask|ButtonReleaseMask
-#define ISFFT(c)        (c->isfull || c->isfloat || c->istrans)
+/*#define ISFFT(c)        (c->isfull || c->isfloat || c->istrans)*/
 #define ROOTMASK        SubstructureRedirectMask | ButtonPressMask | SubstructureNotifyMask | PropertyChangeMask
 
 enum { RESIZE, MOVE };
-enum { TILE, MONOCLE, BSTACK, GRID, FLOAT, MODES };
+enum { FLOAT, TILE, MONOCLE, BSTACK, GRID/*, FLOAT*/, MODES };
 enum { WM_PROTOCOLS, WM_DELETE_WINDOW, WM_COUNT };
-enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, NET_COUNT };
+enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, NET_CLIENTLIST, NET_COUNT};
 
 /**
  * argument structure to be passed to function by config.h
@@ -31,7 +31,7 @@ enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, NET_COUNT };
  * v   - any type argument
  */
 typedef union {
-    const char** com;
+    const char **com;
     const int i;
     const void *v;
 } Arg;
@@ -74,8 +74,8 @@ typedef struct {
 typedef struct {
     const char *class;
     const int desktop;
-    const Bool follow, floating;
-} AppRule;
+    const Bool follow;
+} Rule;
 
 /* exposed function prototypes sorted alphabetically */
 static void change_desktop(const Arg *);
@@ -116,7 +116,7 @@ static void switch_mode(const Arg *);
  */
 typedef struct Client {
     struct Client *next;
-    Bool isurgn, isfull/*, isfloat*/, istrans, immutable;
+    Bool isurgn, isfull/*, isfloat*/, istrans, isimmutable;
     Window win;
     int x, y, w, h;
 } Client;
@@ -132,12 +132,12 @@ typedef struct Client {
  * prev - the client that previously had focus
  */
 typedef struct {
-    int mode, masz, sasz;
+    int /*mode,*/ masz, sasz;
     Client *head, *curr, *prev;
 } Desktop;
 
 /* hidden function prototypes sorted alphabetically */
-static Client* addwindow(Window, Desktop *);
+static Client *addwindow(Window, Desktop *);
 static void buttonpress(XEvent *);
 static void cleanup(void);
 static void clientmessage(XEvent *);
@@ -155,7 +155,7 @@ static void grid(int, int, int, int, const Desktop *);
 static void keypress(XEvent *);
 static void maprequest(XEvent *);
 static void monocle(int, int, int, int, const Desktop *);
-static Client* prevclient(Client *, Desktop *);
+static Client *prevclient(Client *, Desktop *);
 static void propertynotify(XEvent *);
 static void removeclient(Client *, Desktop *);
 static void run(void);
@@ -163,11 +163,12 @@ static void setfullscreen(Client *, Desktop *, Bool);
 static void setup(void);
 static void sigchld(int);
 static void stack(int, int, int, int, const Desktop *);
-static void arrange(Desktop *);
+static void arrange(Desktop *, int);
 static void unmapnotify(XEvent *);
 static Bool wintoclient(Window, Client **, Desktop **);
 static int xerror(Display *, XErrorEvent *);
 static int xerrorstart(Display *, XErrorEvent *);
+static void flt(int, int, int, int, const Desktop *);
 
 /**
  * global variables
@@ -214,7 +215,7 @@ static void (*events[LASTEvent])(XEvent *e) = {
  * d - the desktop to tile its clients
  */
 static void (*layout[MODES])(int x, int y, int w, int h, const Desktop *d) = {
-    [TILE] = stack, [BSTACK] = stack, [GRID] = grid, [MONOCLE] = monocle,
+    [FLOAT] = flt, [TILE] = stack, [BSTACK] = stack, [GRID] = grid, [MONOCLE] = monocle,
 };
 
 /**
@@ -255,12 +256,14 @@ void buttonpress(XEvent *e) {
     Desktop *d = NULL; Client *c = NULL;
     Bool w = wintoclient(e->xbutton.window, &c, &d);
 
-    if (w && CLICK_TO_FOCUS && c != d->curr && e->xbutton.button == FOCUS_BUTTON) focus(c, d);
+    if (w && CLICK_TO_FOCUS && c != d->curr && e->xbutton.button == FOCUS_BUTTON)
+      focus(c, d);
 
     for (unsigned int i = 0; i < LENGTH(buttons); i++)
         if (CLEANMASK(buttons[i].mask) == CLEANMASK(e->xbutton.state) &&
             buttons[i].func && buttons[i].button == e->xbutton.button) {
-            if (c && d->curr != c) focus(c, d);
+            if (c && d->curr != c) 
+              focus(c, d);
             buttons[i].func(&(buttons[i].arg));
         }
 }
@@ -275,15 +278,28 @@ void buttonpress(XEvent *e) {
  * first all others then the current
  */
 void change_desktop(const Arg *arg) {
-    if (arg->i == currdeskidx || arg->i < 0 || arg->i >= DESKTOPS) return;
+    if (arg->i == currdeskidx || arg->i < 0 || arg->i >= DESKTOPS)
+      return;
+    
     Desktop *d = &desktops[(prevdeskidx = currdeskidx)], *n = &desktops[(currdeskidx = arg->i)];
-    if (n->curr) XMapWindow(dpy, n->curr->win);
+    if (n->curr)
+      XMapWindow(dpy, n->curr->win);
+    
     for (Client *c = n->head; c; c = c->next) XMapWindow(dpy, c->win);
     XChangeWindowAttributes(dpy, root, CWEventMask, &(XSetWindowAttributes){.do_not_propagate_mask = SubstructureNotifyMask});
-    for (Client *c = d->head; c; c = c->next) if (c != d->curr) XUnmapWindow(dpy, c->win);
-    if (d->curr) XUnmapWindow(dpy, d->curr->win);
+    for (Client *c = d->head; c; c = c->next) 
+      if (c != d->curr) 
+        XUnmapWindow(dpy, c->win);
+
+    if (d->curr) 
+      XUnmapWindow(dpy, d->curr->win);
+
     XChangeWindowAttributes(dpy, root, CWEventMask, &(XSetWindowAttributes){.event_mask = ROOTMASK});
-    if (n->head) { arrange(n); focus(n->curr, n); }
+    if (n->head) { 
+      arrange(n, FLOAT); 
+      focus(n->curr, n);
+    }
+
     desktopinfo();
 }
 
@@ -296,8 +312,12 @@ void cleanup(void) {
 
     XUngrabKey(dpy, AnyKey, AnyModifier, root);
     XQueryTree(dpy, root, &root_return, &parent_return, &children, &nchildren);
-    for (unsigned int i = 0; i < nchildren; i++) deletewindow(children[i]);
-    if (children) XFree(children);
+    for (unsigned int i = 0; i < nchildren; i++)
+      deletewindow(children[i]);
+    
+    if (children) 
+      XFree(children);
+    
     XSync(dpy, False);
 }
 
@@ -308,22 +328,29 @@ void cleanup(void) {
  * then remove it from the current desktop
  */
 void client_to_desktop(const Arg *arg) {
-    if (arg->i == currdeskidx || arg->i < 0 || arg->i >= DESKTOPS || !desktops[currdeskidx].curr) return;
+    if (arg->i == currdeskidx || arg->i < 0 || arg->i >= DESKTOPS || !desktops[currdeskidx].curr)
+        return;
     Desktop *d = &desktops[currdeskidx], *n = &desktops[arg->i];
     Client *c = d->curr, *p = prevclient(d->curr, d), *l = prevclient(n->head, n);
 
     /* unlink current client from current desktop */
-    if (d->head == c || !p) d->head = c->next; else p->next = c->next;
+    if (d->head == c || !p) 
+        d->head = c->next; 
+    else p->next = c->next;
     c->next = NULL;
     XChangeWindowAttributes(dpy, root, CWEventMask, &(XSetWindowAttributes){.do_not_propagate_mask = SubstructureNotifyMask});
-    if (XUnmapWindow(dpy, c->win)) focus(d->prev, d);
+    if (XUnmapWindow(dpy, c->win))
+        focus(d->prev, d);
     XChangeWindowAttributes(dpy, root, CWEventMask, &(XSetWindowAttributes){.event_mask = ROOTMASK});
-    if (!(c->isfloat || c->istrans) || (d->head && !d->head->next)) arrange(d);
-
+    /*if (!(c->isfloat || c->istrans) || (d->head && !d->head->next))*/
+    if (!c->istrans || (d->head && !d->head->next))
+        arrange(d, 0);
     /* link client to new desktop and make it the current */
-    focus(l ? (l->next = c):n->head ? (n->head->next = c):(n->head = c), n);
-
-    if (FOLLOW_WINDOW) change_desktop(arg); else desktopinfo();
+    focus(l ? (l->next = c) : n->head ? (n->head->next = c) : (n->head = c), n);
+    if (FOLLOW_WINDOW)
+        change_desktop(arg);
+    else
+        desktopinfo();
 }
 
 /**
@@ -349,14 +376,19 @@ void client_to_desktop(const Arg *arg) {
  */
 void clientmessage(XEvent *e) {
     Desktop *d = NULL; Client *c = NULL;
-    if (!wintoclient(e->xclient.window, &c, &d)) return;
+    if (!wintoclient(e->xclient.window, &c, &d))
+        return;
 
     if (e->xclient.message_type        == netatoms[NET_WM_STATE] && (
         (unsigned)e->xclient.data.l[1] == netatoms[NET_FULLSCREEN]
      || (unsigned)e->xclient.data.l[2] == netatoms[NET_FULLSCREEN])) {
         setfullscreen(c, d, (e->xclient.data.l[0] == 1 || (e->xclient.data.l[0] == 2 && !c->isfull)));
-        if (!(c->isfloat || c->istrans) || !d->head->next) arrange(d);
-    } else if (e->xclient.message_type == netatoms[NET_ACTIVE]) focus(c, d);
+        /*if (!(c->isfloat || c->istrans) || !d->head->next) arrange(d);*/
+        if (!c->istrans || !d->head->next)
+            arrange(d, 0);
+    }
+    else if (e->xclient.message_type == netatoms[NET_ACTIVE])
+        focus(c, d);
 }
 
 /**
@@ -389,7 +421,8 @@ void configurerequest(XEvent *e) {
     XWindowChanges wc = { ev->x, ev->y,  ev->width, ev->height, ev->border_width, ev->above, ev->detail };
     if (XConfigureWindow(dpy, ev->window, ev->value_mask, &wc)) XSync(dpy, False);
     Desktop *d = NULL; Client *c = NULL;
-    if (wintoclient(ev->window, &c, &d)) arrange(d);
+    if (wintoclient(ev->window, &c, &d))
+      arrange(d, 0);
 }
 
 /**
@@ -423,6 +456,7 @@ void deletewindow(Window w) {
  * once the info is collected, immediately flush the stream
  */
 void desktopinfo(void) {
+  /*
     Desktop *d = NULL;
     Client *c = NULL;
     Bool urgent = False;
@@ -432,6 +466,7 @@ void desktopinfo(void) {
         printf("%d:%d:%d:%d:%d%c", i, w, d->mode, i == currdeskidx, urgent, i == DESKTOPS-1 ? '\n':' ');
     }
     fflush(stdout);
+    */
 }
 
 /**
@@ -540,17 +575,22 @@ void focus(Client *c, Desktop *d) {
      *
      * num of n:all fl:fullscreen ft:floating/transient windows
      */
-    int n = 0, fl = 0, ft = 0;
+    int n = 0/*, fl = 0*/, ft = 0;
     for (c = d->head; c; c = c->next, ++n) 
+        /*
         if (ISFFT(c)) { 
             fl++; 
             if (!c->isfull) 
                 ft++; 
         }
+        */
+        ;
 
     Window w[n];
-    w[(d->curr->isfloat || d->curr->istrans) ? 0 : ft] = d->curr->win;
-    for (fl += !ISFFT(d->curr) ? 1 : 0, c = d->head; c; c = c->next) {
+    /*w[(d->curr->isfloat || d->curr->istrans) ? 0 : ft] = d->curr->win;*/
+    w[(d->curr->istrans) ? 0 : ft] = d->curr->win;
+    /*for (fl += !ISFFT(d->curr) ? 1 : 0, c = d->head; c; c = c->next) {*/
+    for (c = d->head; c; c = c->next) {
         XSetWindowBorder(dpy, c->win, c == d->curr ? win_focus : win_unfocus);
         /*
          * a window should have borders in any case, except if
@@ -559,11 +599,15 @@ void focus(Client *c, Desktop *d) {
          *      - the mode is MONOCLE or,
          *      - it is the only window on screen
          */
+         /*
         XSetWindowBorderWidth(dpy, c->win, c->isfull || (!ISFFT(c) &&
             (d->mode == MONOCLE || !d->head->next)) ? 0 : BORDER_WIDTH);
-        //XSetWindowBorderWidth(dpy, c->win, c->isfull ? 0 : BORDER_WIDTH);
+        */
+        XSetWindowBorderWidth(dpy, c->win, c->isfull ? 0 : BORDER_WIDTH);
+        /*
         if (c != d->curr) 
             w[c->isfull ? --fl : ISFFT(c) ? --ft : --n] = c->win;
+            */
         if (CLICK_TO_FOCUS || c == d->curr) 
             grabbuttons(c);
     }
@@ -655,16 +699,26 @@ void grabkeys(void) {
  */
 void grid(int x, int y, int w, int h, const Desktop *d) {
     int n = 0, cols = 0, cn = 0, rn = 0, i = -1;
-    for (Client *c = d->head; c; c = c->next) if (!ISFFT(c)) ++n;
+    for (Client *c = d->head; c; c = c->next) 
+        /*if (!ISFFT(c))*/ 
+            ++n;
     for (cols = 0; cols <= n/2; cols++) if (cols*cols >= n) break; /* emulate square root */
     if (n == 0) return; else if (n == 5) cols = 2;
 
     int rows = n/cols, ch = h - BORDER_WIDTH, cw = (w - BORDER_WIDTH)/(cols ? cols:1);
     for (Client *c = d->head; c; c = c->next) {
-        if (ISFFT(c)) continue; else ++i;
-        if (i/rows + 1 > cols - n%cols) rows = n/cols + 1;
-        XMoveResizeWindow(dpy, c->win, x + cn*cw, y + rn*ch/rows, cw - BORDER_WIDTH, ch/rows - BORDER_WIDTH);
-        if (++rn >= rows) { rn = 0; cn++; }
+        /*
+        if (ISFFT(c)) 
+            continue;
+        else */
+            ++i;
+        if (i / rows + 1 > cols - n % cols)
+            rows = n / cols + 1;
+        XMoveResizeWindow(dpy, c->win, x + cn * cw, y + rn * ch / rows, cw - BORDER_WIDTH, ch / rows - BORDER_WIDTH);
+        if (++rn >= rows) { 
+            rn = 0; 
+            cn++; 
+        }
     }
 }
 
@@ -723,7 +777,7 @@ void maprequest(XEvent *e) {
         return;
 
     XClassHint ch = { 0, 0 };
-    Bool follow = False, floating = False;
+    Bool follow = False;
     int newdsk = currdeskidx;
 
     if (XGetClassHint(dpy, w, &ch))
@@ -731,7 +785,7 @@ void maprequest(XEvent *e) {
             if (strstr(ch.res_class, rules[i].class) || strstr(ch.res_name, rules[i].class)) {
                 if (rules[i].desktop >= 0 && rules[i].desktop < DESKTOPS)
                     newdsk = rules[i].desktop;
-                follow = rules[i].follow, floating = rules[i].floating;
+                follow = rules[i].follow;
              break;
             }
 
@@ -742,28 +796,29 @@ void maprequest(XEvent *e) {
 
     c = addwindow(w, (d = &desktops[newdsk])); /* from now on, use c->win */
     c->istrans = XGetTransientForHint(dpy, c->win, &w);
-    if ((c->isfloat = (floating || d->mode == FLOAT)) && !c->istrans)
+    /*if ((c->isfloat = (floating || d->mode == FLOAT)) && !c->istrans)*/
+    if (!c->istrans)
         XMoveWindow(dpy, c->win, (ww - wa.width) / 2, (wh - wa.height) / 2);
 
-    int i; 
-    unsigned long l; 
-    unsigned char *state = NULL; 
+    int i;
+    unsigned long l;
+    unsigned char *state = NULL;
     Atom a;
     if (XGetWindowProperty(dpy, c->win, netatoms[NET_WM_STATE], 0L, sizeof a,
                 False, XA_ATOM, &a, &i, &l, &l, &state) == Success && state)
-        setfullscreen(c, d, (*(Atom *)state == netatoms[NET_FULLSCREEN]));
+        setfullscreen(c, d, (*(Atom *) state == netatoms[NET_FULLSCREEN]));
     if (state)
         XFree(state);
 
     if (currdeskidx == newdsk) { 
-        if (!ISFFT(c)) 
-            arrange(d); 
+        /*if (!ISFFT(c)) */
+            arrange(d, FLOAT); 
         XMapWindow(dpy, c->win);
     }
     else if (follow) 
-        change_desktop(&(Arg){.i = newdsk});
-    focus(c, d);
+        change_desktop(&(Arg) { .i = newdsk });
 
+    focus(c, d);
     if (!follow)
         desktopinfo();
 }
@@ -797,8 +852,13 @@ void mousemotion(const Arg *arg) {
 
     if (XGrabPointer(dpy, root, False, BUTTONMASK|PointerMotionMask, GrabModeAsync,
                      GrabModeAsync, None, None, CurrentTime) != GrabSuccess) return;
-
-    if (!d->curr->isfloat && !d->curr->istrans) { d->curr->isfloat = True; arrange(d); focus(d->curr, d); }
+/*
+    if (!d->curr->isfloat && !d->curr->istrans) { 
+        d->curr->isfloat = True; 
+        arrange(d); 
+        focus(d->curr, d); 
+    }
+*/
 
     do {
         XMaskEvent(dpy, BUTTONMASK|PointerMotionMask|SubstructureRedirectMask, &ev);
@@ -845,7 +905,8 @@ void monocle(int x, int y, int w, int h, const Desktop *d) {
  */
 void move_down(void) {
     Desktop *d = &desktops[currdeskidx];
-    if (!d->curr || !d->head->next) return;
+    if (!d->curr || !d->head->next)
+        return;
     /* p is previous, c is current, n is next, if current is head n is last */
     Client *p = prevclient(d->curr, d), *n = (d->curr->next) ? d->curr->next:d->head;
     /*
@@ -856,7 +917,10 @@ void move_down(void) {
      * else there is a previous client and p->next should be what's after c
      * ..->[p]->[c]->[n]->..  ==>  ..->[p]->[n]->[c]->..
      */
-    if (d->curr == d->head) d->head = n; else p->next = d->curr->next;
+    if (d->curr == d->head) 
+        d->head = n; 
+    else 
+        p->next = d->curr->next;
     /*
      * if c is the last client, c will be the current head
      * [n]->..->[p]->[c]->NULL  ==>  [c]->[n]->..->[p]->NULL
@@ -875,8 +939,13 @@ void move_down(void) {
      * [n]->..->[p]->[c]->NULL  ==>  [c]->[n]->..->[p]->NULL
      *  ^head                         ^head
      */
-    if (d->curr->next == n->next) n->next = d->curr; else d->head = d->curr;
-    if (!d->curr->isfloat && !d->curr->istrans) arrange(d);
+    if (d->curr->next == n->next) 
+        n->next = d->curr; 
+    else d->head = d->curr;
+    /*
+    if (!d->curr->isfloat && !d->curr->istrans) 
+        arrange(d);
+        */
 }
 
 /**
@@ -884,11 +953,13 @@ void move_down(void) {
  */
 void move_up(void) {
     Desktop *d = &desktops[currdeskidx];
-    if (!d->curr || !d->head->next) return;
+    if (!d->curr || !d->head->next) 
+        return;
     /* p is previous from current or last if current is head */
     Client *pp = NULL, *p = prevclient(d->curr, d);
     /* pp is previous from p, or null if current is head and thus p is last */
-    if (p->next) for (pp = d->head; pp && pp->next != p; pp = pp->next);
+    if (p->next) 
+        for (pp = d->head; pp && pp->next != p; pp = pp->next);
     /*
      * if p has a previous client then the next client should be current (current is c)
      * ..->[pp]->[p]->[c]->..  ==>  ..->[pp]->[c]->[p]->..
@@ -900,7 +971,10 @@ void move_up(void) {
      * [c]->[n]->..->[p]->NULL  ==>  [n]->..->[p]->[c]->NULL
      *  ^head         ^last           ^head         ^last
      */
-    if (pp) pp->next = d->curr; else d->head = (d->curr == d->head) ? d->curr->next:d->curr;
+    if (pp) 
+        pp->next = d->curr;
+    else 
+        d->head = (d->curr == d->head) ? d->curr->next : d->curr;
     /*
      * next of p should be next of c
      * ..->[pp]->[p]->[c]->[n]->..  ==>  ..->[pp]->[c]->[p]->[n]->..
@@ -917,7 +991,10 @@ void move_up(void) {
      *  ^head         ^last           ^head         ^last
      */
     d->curr->next = (d->curr->next == d->head) ? NULL:p;
-    if (!d->curr->isfloat && !d->curr->istrans) arrange(d);
+    /*
+    if (!d->curr->isfloat && !d->curr->istrans) 
+        arrange(d);
+        */
 }
 
 /**
@@ -926,8 +1003,15 @@ void move_up(void) {
 void moveresize(const Arg *arg) {
     Desktop *d = &desktops[currdeskidx];
     XWindowAttributes wa;
-    if (!d->curr || !XGetWindowAttributes(dpy, d->curr->win, &wa)) return;
-    if (!d->curr->isfloat && !d->curr->istrans) { d->curr->isfloat = True; arrange(d); focus(d->curr, d); }
+    if (!d->curr || !XGetWindowAttributes(dpy, d->curr->win, &wa)) 
+        return;
+        /*
+    if (!d->curr->isfloat && !d->curr->istrans) { 
+        d->curr->isfloat = True; 
+        arrange(d); 
+        focus(d->curr, d); 
+    }
+    */
     XMoveResizeWindow(dpy, d->curr->win, wa.x + ((int *)arg->v)[0], wa.y + ((int *)arg->v)[1],
                                 wa.width + ((int *)arg->v)[2], wa.height + ((int *)arg->v)[3]);
 }
@@ -992,10 +1076,18 @@ void quit(const Arg *arg) {
 void removeclient(Client *c, Desktop *d) {
     Client **p = NULL;
     for (p = &d->head; *p && (*p != c); p = &(*p)->next);
-    if (!*p) return; else *p = c->next;
-    if (c == d->prev && !(d->prev = prevclient(d->curr, d))) d->prev = d->head;
-    if (c == d->curr || (d->head && !d->head->next)) focus(d->prev, d);
-    if (!(c->isfloat || c->istrans) || (d->head && !d->head->next)) arrange(d);
+    if (!*p) 
+        return; 
+    else 
+        *p = c->next;
+    if (c == d->prev && !(d->prev = prevclient(d->curr, d))) 
+        d->prev = d->head;
+    if (c == d->curr || (d->head && !d->head->next)) 
+        focus(d->prev, d);
+    /*
+    if (!(c->isfloat || c->istrans) || (d->head && !d->head->next)) 
+        arrange(d);
+    */
     free(c);
     desktopinfo();
 }
@@ -1006,10 +1098,11 @@ void removeclient(Client *c, Desktop *d) {
  * stack clients. the size of a window can't be less than MINWSZ
  */
 void resize_master(const Arg *arg) {
+  /*
     Desktop *d = &desktops[currdeskidx];
-    int msz = (d->mode == BSTACK ? wh:ww) * MASTER_SIZE + (d->masz += arg->i);
+    int msz = (d->mode == BSTACK ? wh : ww) * MASTER_SIZE + (d->masz += arg->i);
     if (msz >= MINWSZ && (d->mode == BSTACK ? wh:ww) - msz >= MINWSZ) arrange(d);
-    else d->masz -= arg->i; /* reset master area size */
+    else d->masz -= arg->i;*/ /* reset master area size */
 }
 
 /**
@@ -1017,7 +1110,7 @@ void resize_master(const Arg *arg) {
  */
 void resize_stack(const Arg *arg) {
     desktops[currdeskidx].sasz += arg->i;
-    arrange(&desktops[currdeskidx]);
+    arrange(&desktops[currdeskidx], 0);
 }
 
 /**
@@ -1080,9 +1173,10 @@ void setup(void) {
     ww = XDisplayWidth(dpy,  screen);
     wh = XDisplayHeight(dpy, screen);
 
-    /* initialize mode and panel visibility for each desktop */
+    /* initialize mode and panel visibility for each desktop
     for (unsigned int d = 0; d < DESKTOPS; d++)
         desktops[d] = (Desktop){ .mode = FLOAT };
+        */
 
     /* get color for focused and unfocused client borders */
     win_focus = getcolor(FOCUS, screen);
@@ -1102,6 +1196,7 @@ void setup(void) {
     netatoms[NET_WM_STATE]    = XInternAtom(dpy, "_NET_WM_STATE",    False);
     netatoms[NET_ACTIVE]      = XInternAtom(dpy, "_NET_ACTIVE_WINDOW",       False);
     netatoms[NET_FULLSCREEN]  = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False);
+    netatoms[NET_CLIENTLIST]  = XInternAtom(dpy, "_NET_CLIENT_LIST", False);
 
     /* propagate EWMH support */
     XChangeProperty(dpy, root, netatoms[NET_SUPPORTED], XA_ATOM, 32,
@@ -1136,8 +1231,8 @@ void spawn(const Arg *arg) {
     if (dpy) 
         close(ConnectionNumber(dpy));
     setsid();
-    execvp((char*)arg->com[0], (char**)arg->com);
-    err(EXIT_SUCCESS, "execvp %s", (char *)arg->com[0]);
+    execvp((char *) arg->com[0], (char **) arg->com);
+    err(EXIT_SUCCESS, "execvp %s", (char *) arg->com[0]);
 }
 
 /**
@@ -1145,12 +1240,14 @@ void spawn(const Arg *arg) {
  * bstack or bottom stack aka h-stack mode/layout
  */
 void stack(int x, int y, int w, int h, const Desktop *d) {
-    Client *c = NULL, *t = NULL; Bool b = (d->mode == BSTACK);
+    Client *c = NULL, *t = NULL; 
+    //Bool b = (d->mode == BSTACK);
+    Bool b = BSTACK;
     int n = 0, p = 0, z = (b ? w : h), ma = (b ? h : w) * MASTER_SIZE + d->masz;
 
     /* count stack windows and grab first non-floating, non-fullscreen window */
     for (t = d->head; t; t = t->next)
-        if (!ISFFT(t)) { 
+        /*if (!ISFFT(t))*/ { 
             if (c) ++n;
             else c = t; 
         }
@@ -1189,8 +1286,8 @@ void stack(int x, int y, int w, int h, const Desktop *d) {
     if (!c || !n)
         return;
     else if (n > 1) { 
-        p = (z - d->sasz)%n + d->sasz;
-        z = (z - d->sasz)/n; 
+        p = (z - d->sasz) % n + d->sasz;
+        z = (z - d->sasz) / n; 
     }
 
     /* tile the first non-floating, non-fullscreen window to cover the master area */
@@ -1200,7 +1297,7 @@ void stack(int x, int y, int w, int h, const Desktop *d) {
         XMoveResizeWindow(dpy, c->win, x, y, ma - BORDER_WIDTH, h - 2 * BORDER_WIDTH);
 
     /* tile the next non-floating, non-fullscreen (and first) stack window adding p */
-    for (c = c->next; c && ISFFT(c); c = c->next);
+    for (c = c->next; c /*&& ISFFT(c)*/; c = c->next);
     int cw = (b ? h : w) - 2 * BORDER_WIDTH - ma, ch = z - BORDER_WIDTH;
     if (b)
         XMoveResizeWindow(dpy, c->win, x, y += ma, ch - BORDER_WIDTH + p, cw);
@@ -1208,9 +1305,11 @@ void stack(int x, int y, int w, int h, const Desktop *d) {
         XMoveResizeWindow(dpy, c->win, x += ma, y, cw, ch - BORDER_WIDTH + p);
 
     /* tile the rest of the non-floating, non-fullscreen stack windows */
-    for (b ? (x += ch+p) : (y += ch+p), c = c->next; c; c = c->next) {
+    for (b ? (x += ch + p) : (y += ch + p), c = c->next; c; c = c->next) {
+        /*
         if (ISFFT(c))
             continue;
+      */
         if (b) { 
             XMoveResizeWindow(dpy, c->win, x, y, ch, cw);
             x += z;
@@ -1258,19 +1357,22 @@ void switch_mode(const Arg *arg) {
 
 void switch_mode(const Arg *arg) {
     Desktop *d = &desktops[currdeskidx];
-    d->mode = arg->i;
+    /*d->mode = arg->i;*/
+    /*
     for (Client *c = d->head; c; c = c->next)
         c->isfloat = False;
-    if (d->head && d->head) { 
-        arrange(d); 
+        */
+    if (d->head) { 
+        arrange(d, arg->i); 
         focus(d->curr, d);
     }
-    
+    /*
     d->mode = FLOAT;
     for (Client *c = d->head; c; c = c->next)
         c->isfloat = True;
+        */
         /* c->isfloat = c->isfull ? False : True; */
-    desktopinfo();
+    /*desktopinfo();*/
 }
 
 /**
@@ -1283,14 +1385,13 @@ void arrange(Desktop *d) {
 }
 */
 
-void arrange(Desktop *d) {
-    if (!d->head || d->mode == FLOAT)
+void arrange(Desktop *d, int mode) {
+    if (!d->head/* || d->mode == FLOAT*/)
         return;
     /*
-    if (!d->head) return;
     layout[d->head->next ? d->mode : MONOCLE](0, 0, ww, wh, d);
     */
-    layout[d->mode](0, 0, ww, wh, d);
+    layout[mode](0, 0, ww, wh, d);
 }
 
 /**
@@ -1349,4 +1450,14 @@ int main(int argc, char *argv[]) {
     cleanup();
     XCloseDisplay(dpy);
     return retval;
+}
+
+void flt(int x, int y, int w, int h, const Desktop *d) {
+    Client *c = NULL, *t = NULL; 
+    for (t = d->head; t; t = t->next) { 
+      if (!c) 
+        c = t; 
+    }
+    /* TODO: Determine unique position */
+    XMoveResizeWindow(dpy, c->win, x, y, w - 2 * BORDER_WIDTH, h - 2 * BORDER_WIDTH);
 }

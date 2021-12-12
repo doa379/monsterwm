@@ -8,6 +8,7 @@ TODO
 * Enumerate/export client + wm positions
 * Integrate dynamic panel
 * Destroy clients on quit (Maintain clients on reload)
+* Swap master on Tile toggle
 * MM support
 
 
