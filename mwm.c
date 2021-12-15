@@ -559,9 +559,9 @@ void focus(Client *c, Desktop *d) {
      *      - the mode is MONOCLE or,
      *      - it is the only window on screen
      */
-    XSetWindowBorderWidth(dpy, c->win, c->isfull/* || (!ISIMM(c) &&
-       (d->mode == MONOCLE*/ || !d->head->next ? 0 : BORDER_WIDTH);
-    //XSetWindowBorderWidth(dpy, c->win, c->isfull ? 0 : BORDER_WIDTH);
+    /*XSetWindowBorderWidth(dpy, c->win, c->isfull || (!ISIMM(c) &&
+       (d->mode == MONOCLE || !d->head->next ? 0 : BORDER_WIDTH);*/
+    XSetWindowBorderWidth(dpy, c->win, c->isfull ? 0 : BORDER_WIDTH);
     if (c != d->curr) 
       w[c->isfull ? --fl : ISIMM(c) ? --ft : --n] = c->win;
     if (CLICK_TO_FOCUS || c == d->curr) 
