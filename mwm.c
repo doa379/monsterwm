@@ -16,7 +16,7 @@
 #define LENGTH(x)       (sizeof(x) / sizeof(*x))
 #define CLEANMASK(mask) (mask & ~(numlockmask | LockMask))
 #define BUTTONMASK      ButtonPressMask|ButtonReleaseMask
-#define ISIMM(c)        (c->isfull || c->istrans || c->isimmutable)
+#define ISIMM(c)        (c->istrans || c->isimmutable)
 #define ROOTMASK        SubstructureRedirectMask | ButtonPressMask | SubstructureNotifyMask | PropertyChangeMask
 
 enum { RESIZE, MOVE };
@@ -262,7 +262,7 @@ void change_desktop(const Arg *arg) {
 
   XChangeWindowAttributes(dpy, root, CWEventMask, &(XSetWindowAttributes){.event_mask = ROOTMASK});
   if (n->head) { 
-    arrange(n, FLOAT); 
+    /*arrange(n, FLOAT);*/
     focus(n->curr, n);
   }
 
@@ -307,9 +307,9 @@ void client_to_desktop(const Arg *arg) {
   if (XUnmapWindow(dpy, c->win))
     focus(d->prev, d);
   XChangeWindowAttributes(dpy, root, CWEventMask, &(XSetWindowAttributes){.event_mask = ROOTMASK});
-  /*if (!(c->isfloat || c->istrans) || (d->head && !d->head->next))*/
+  /*if (!(c->isfloat || c->istrans) || (d->head && !d->head->next))
   if (!c->istrans || (d->head && !d->head->next))
-    arrange(d, FLOAT);
+    arrange(d, FLOAT);*/
   /* link client to new desktop and make it the current */
   focus(l ? (l->next = c) : n->head ? (n->head->next = c) : (n->head = c), n);
   if (FOLLOW_WINDOW)
@@ -527,17 +527,8 @@ void focus(Client *c, Desktop *d) {
 
   /* restack clients
    *
-   * stack order is based on client properties.
-   * from top to bottom:
-   *  - current when floating or transient
-   *  - floating or trancient windows
-   *  - current when tiled
-   *  - current when fullscreen
-   *  - fullscreen windows
-   *  - tiled windows
-   *
    * num of n:all fl:fullscreen ft:floating/transient windows
-   */
+   
   int n = 0, fl = 0, ft = 0;
   for (c = d->head; c; c = c->next, ++n)
     if (ISIMM(c)) { 
@@ -545,6 +536,26 @@ void focus(Client *c, Desktop *d) {
       if (!c->isfull) 
         ft++; 
     }
+*/
+  int n = 0, fl = 0, ft = 0;
+  /*
+  for (c = d->head; c; c = c->next, ++n)
+    if (ISIMM(c)) { 
+      fl++; 
+      if (!c->isfull) 
+        ft++; 
+    }
+  */
+  for (Client *c = d->head; c; c = c->next, ++n)
+  {
+    if (c->isfull && c->next)
+      c->isfull = 0;
+
+    else if (c->isfull)
+      fl++;
+  }
+
+  ft = n;
 
   Window w[n];
   //w[(d->curr->isfloat || d->curr->istrans) ? 0 : ft] = d->curr->win;
@@ -1337,8 +1348,13 @@ void switch_mode(const Arg *arg) {
      for (Client *c = d->head; c; c = c->next)
      c->isfloat = False;
    */
-  if (d->head) { 
-    arrange(d, arg->i); 
+  if (d->head) {
+    /*
+    for (Client *c = d->head; c; c = c->next)
+      if (c->isfull && c->next)
+        c->isfull = 0;
+*/
+    arrange(d, arg->i);
     focus(d->curr, d);
   }
   /*
