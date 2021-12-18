@@ -20,7 +20,7 @@
 #define ROOTMASK        SubstructureRedirectMask | ButtonPressMask | SubstructureNotifyMask | PropertyChangeMask
 
 enum { RESIZE, MOVE };
-enum { FLOAT, MONOCLE, TILE, BSTACK, GRID, MODES };
+enum { MONOCLE, TILE, BSTACK, GRID, MODES };
 enum { WM_PROTOCOLS, WM_DELETE_WINDOW, WM_COUNT };
 enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, NET_CLIENTLIST, NET_COUNT};
 
@@ -183,7 +183,7 @@ static void (*events[LASTEvent])(XEvent *e) = {
  * d - the desktop to tile its clients
  */
 static void (*layout[MODES])(int x, int y, int w, int h, const Desktop *d) = {
-  [FLOAT] = flt, [MONOCLE] = monocle, [TILE] = stack, [BSTACK] = bstack, [GRID] = grid, };
+  [MONOCLE] = monocle, [TILE] = stack, [BSTACK] = bstack, [GRID] = grid, };
 
 /**
  * add the given window to the given desktop
@@ -348,9 +348,9 @@ void clientmessage(XEvent *e) {
         (unsigned)e->xclient.data.l[1] == netatoms[NET_FULLSCREEN]
         || (unsigned)e->xclient.data.l[2] == netatoms[NET_FULLSCREEN])) {
     setfullscreen(c, d, (e->xclient.data.l[0] == 1 || (e->xclient.data.l[0] == 2 && !c->isfull)));
-    /*if (!(c->isfloat || c->istrans) || !d->head->next) arrange(d);*/
+    /*if (!(c->isfloat || c->istrans) || !d->head->next) arrange(d);
     if (!c->istrans || !d->head->next)
-      arrange(d, FLOAT);
+      arrange(d, FLOAT);*/
   }
   else if (e->xclient.message_type == netatoms[NET_ACTIVE])
     focus(c, d);
@@ -386,8 +386,8 @@ void configurerequest(XEvent *e) {
   XWindowChanges wc = { ev->x, ev->y,  ev->width, ev->height, ev->border_width, ev->above, ev->detail };
   if (XConfigureWindow(dpy, ev->window, ev->value_mask, &wc)) XSync(dpy, False);
   Desktop *d = NULL; Client *c = NULL;
-  if (wintoclient(ev->window, &c, &d))
-    arrange(d, FLOAT);
+  /*if (wintoclient(ev->window, &c, &d))
+    arrange(d, FLOAT);*/
 }
 
 /**
@@ -469,50 +469,7 @@ void enternotify(XEvent *e) {
  * 4. give input focus to the current/active/focused client
  */
 void focus(Client *c, Desktop *d) {
-  /* update references to prev and curr,
-   * previously focused and currently focused clients.
-   *
-   * if there are no clients (!head) or the new client
-   * is NULL, then delete the _NET_ACTIVE_WINDOW property
-   *
-   * if the new client is the prev client then
-   *  - either the current client was removed
-   *    and thus focus(prev) was called
-   *  - or the previous from current is prev
-   *    ie, two consecutive clients were focused
-   *    and then prev_win() was called, to focus
-   *    the previous from current client, which
-   *    happens to be prev (curr == c->next).
-   * (below: h:head p:prev c:curr)
-   *
-   * [h]->[p]->[c]->NULL   ===>   [h|p]->[c]->NULL
-   *            ^ remove current
-   *
-   * [h]->[p]->[c]->NULL   ===>   [h]->[c]->[p]->NULL
-   *       ^ prev_win swaps prev and curr
-   *
-   * in the first case we need to update prev reference,
-   * choice here is to set it to the previous from the
-   * new current client.
-   * the second case is handled as any other case, the
-   * current client is now the previously focused (prev = curr)
-   * and the new current client is now curr (curr = c)
-   *
-   * references should only change when the current
-   * client is different from the one given to focus.
-   *
-   * the new client should never be NULL, except if,
-   * there is no other client on the workspace (!head).
-   * prev and curr always point to different clients.
-   *
-   * NOTICE: remove client can remove any client,
-   * not just the current (curr). Thus, if prev is
-   * removed, its reference needs to be updated.
-   * That is handled by removeclient() function.
-   * All other reference changes for curr and prev
-   * should and are handled here.
-   */
-  if (!d->head || !c) { /* no clients - no active window - nothing to do */
+  if (!d->head || !c) {
     XDeleteProperty(dpy, root, netatoms[NET_ACTIVE]);
     d->curr = d->prev = NULL;
     return;
@@ -524,19 +481,9 @@ void focus(Client *c, Desktop *d) {
     d->prev = d->curr; 
     d->curr = c; 
   }
-
   /* restack clients
    *
-   * num of n:all fl:fullscreen ft:floating/transient windows
-   
-  int n = 0, fl = 0, ft = 0;
-  for (c = d->head; c; c = c->next, ++n)
-    if (ISIMM(c)) { 
-      fl++; 
-      if (!c->isfull) 
-        ft++; 
-    }
-*/
+   * num of n:all fl:fullscreen ft:floating/transient windows */
   int n = 0, fl = 0, ft = 0;
   /*
   for (c = d->head; c; c = c->next, ++n)
@@ -545,36 +492,34 @@ void focus(Client *c, Desktop *d) {
       if (!c->isfull) 
         ft++; 
     }
-  */
-  for (Client *c = d->head; c; c = c->next, ++n)
-  {
-    if (c->isfull && c->next)
+*/
+  for (Client *c = d->head; c; c = c->next, ++n) {
+    //if (c->isfull && c->next)
+      //c->isfull = 0;
+      /*
+    if (c->isfull)
+    {
       c->isfull = 0;
-
-    else if (c->isfull)
       fl++;
+    }
+    */
+    ;
   }
 
-  ft = n;
-
   Window w[n];
+  ft = n;
   //w[(d->curr->isfloat || d->curr->istrans) ? 0 : ft] = d->curr->win;
   w[(d->curr->istrans) ? 0 : ft] = d->curr->win;
-  for (fl += !ISIMM(d->curr) ? 1 : 0, c = d->head; c; c = c->next) {
+  for (/*fl += !ISIMM(d->curr) ? 1 : 0,*/ c = d->head; c; c = c->next) {
   //for (c = d->head; c; c = c->next) {
     XSetWindowBorder(dpy, c->win, c == d->curr ? win_focus : win_unfocus);
-    /*
-     * a window should have borders in any case, except if
-     *  - the window is fullscreen
-     *  - the window is not floating or transient and
-     *      - the mode is MONOCLE or,
-     *      - it is the only window on screen
-     */
     /*XSetWindowBorderWidth(dpy, c->win, c->isfull || (!ISIMM(c) &&
        (d->mode == MONOCLE || !d->head->next ? 0 : BORDER_WIDTH);*/
+       /*
     XSetWindowBorderWidth(dpy, c->win, c->isfull ? 0 : BORDER_WIDTH);
     if (c != d->curr) 
-      w[c->isfull ? --fl : ISIMM(c) ? --ft : --n] = c->win;
+      w[c->isfull ? --fl : ISIMM(c) ? --ft : --n] = c->win;*/
+    w[--n] = c->win;
     if (CLICK_TO_FOCUS || c == d->curr) 
       grabbuttons(c);
   }
@@ -597,7 +542,8 @@ void focus(Client *c, Desktop *d) {
  */
 void focusin(XEvent *e) {
   Desktop *d = &desktops[currdeskidx];
-  if (d->curr && d->curr->win != e->xfocus.window) focus(d->curr, d);
+  if (d->curr && d->curr->win != e->xfocus.window)
+    focus(d->curr, d);
 }
 
 /**
@@ -623,7 +569,8 @@ void focusurgent(void) {
  */
 unsigned long getcolor(const char* color, const int screen) {
   XColor c; Colormap map = DefaultColormap(dpy, screen);
-  if (!XAllocNamedColor(dpy, map, color, &c, &c)) err(EXIT_FAILURE, "cannot allocate color");
+  if (!XAllocNamedColor(dpy, map, color, &c, &c))
+    err(EXIT_FAILURE, "cannot allocate color");
   return c.pixel;
 }
 
@@ -780,8 +727,8 @@ void maprequest(XEvent *e) {
   c = addwindow(w, (d = &desktops[newdsk]));
   c->istrans = XGetTransientForHint(dpy, c->win, &w);
   /*if ((c->isfloat = (floating || d->mode == FLOAT)) && !c->istrans)*/
-  if (!c->istrans)
-    XMoveWindow(dpy, c->win, (ww - wa.width) / 2, (wh - wa.height) / 2);
+  //if (!c->istrans)
+    //XMoveWindow(dpy, c->win, (ww - wa.width) / 2, (wh - wa.height) / 2);
 
   int i;
   unsigned long l;
@@ -795,8 +742,8 @@ void maprequest(XEvent *e) {
     XFree(state);
 
   if (currdeskidx == newdsk) { 
-    if (!ISIMM(c))
-      arrange(d, FLOAT); 
+    /*if (!ISIMM(c))
+      arrange(d, FLOAT); */
     XMapWindow(dpy, c->win);
   }
   else if (follow) 
@@ -838,7 +785,8 @@ void mousemotion(const Arg *arg) {
     return;
 
   if (XGrabPointer(dpy, root, False, BUTTONMASK|PointerMotionMask, GrabModeAsync,
-        GrabModeAsync, None, None, CurrentTime) != GrabSuccess) return;
+        GrabModeAsync, None, None, CurrentTime) != GrabSuccess)
+    return;
   /*
      if (!d->curr->isfloat && !d->curr->istrans) { 
      d->curr->isfloat = True; 
@@ -850,11 +798,12 @@ void mousemotion(const Arg *arg) {
   do {
     XMaskEvent(dpy, BUTTONMASK|PointerMotionMask|SubstructureRedirectMask, &ev);
     if (ev.type == MotionNotify) {
-      xw = (arg->i == MOVE ? wa.x:wa.width)  + ev.xmotion.x - rx;
-      yh = (arg->i == MOVE ? wa.y:wa.height) + ev.xmotion.y - ry;
-      if (arg->i == RESIZE) XResizeWindow(dpy, d->curr->win,
-          xw > MINWSZ ? xw:wa.width, yh > MINWSZ ? yh:wa.height);
-      else if (arg->i == MOVE) XMoveWindow(dpy, d->curr->win, xw, yh);
+      xw = (arg->i == MOVE ? wa.x : wa.width) + ev.xmotion.x - rx;
+      yh = (arg->i == MOVE ? wa.y : wa.height) + ev.xmotion.y - ry;
+      if (arg->i == RESIZE) 
+        XResizeWindow(dpy, d->curr->win, xw > MINWSZ ? xw : wa.width, yh > MINWSZ ? yh : wa.height);
+      else if (arg->i == MOVE)
+        XMoveWindow(dpy, d->curr->win, xw, yh);
     } 
     else if (ev.type == ConfigureRequest || ev.type == MapRequest) 
       events[ev.type](&ev);
@@ -880,11 +829,12 @@ void monocle(int x, int y, int w, int h, const Desktop *d) {
     c->w = 80;
     c->h = 80;
     XMoveResizeWindow(dpy, c->win, x, y, w, h);
+    XSetWindowBorderWidth(dpy, c->win, 0);
     c->isfull = True;
   }
-
   else {
     XMoveResizeWindow(dpy, c->win, c->x, c->y, c->w, c->h);
+    XSetWindowBorderWidth(dpy, c->win, BORDER_WIDTH);
     c->isfull = False;
   }
 }
@@ -1107,7 +1057,7 @@ void resize_master(const Arg *arg) {
  */
 void resize_stack(const Arg *arg) {
   desktops[currdeskidx].sasz += arg->i;
-  arrange(&desktops[currdeskidx], FLOAT);
+  /*arrange(&desktops[currdeskidx], FLOAT);*/
 }
 
 /**
@@ -1250,7 +1200,7 @@ void stack(int x, int y, int w, int h, const Desktop *d) {
       else c = t; 
     }
 
-  if (c && !n)
+  if (c && n)
     XMoveResizeWindow(dpy, c->win, x, y, w - 2 * BORDER_WIDTH, h - 2 * BORDER_WIDTH);
   if (!c || !n)
     return;
@@ -1445,13 +1395,13 @@ int main(int argc, char *argv[]) {
   XCloseDisplay(dpy);
   return retval;
 }
-
+/*
 void flt(int x, int y, int w, int h, const Desktop *d) {
   Client *c = NULL, *t = NULL; 
   for (t = d->head; t; t = t->next) { 
     if (!c) 
       c = t; 
   }
-  /* TODO: Determine unique position */
   XMoveResizeWindow(dpy, c->win, x, y, w - 2 * BORDER_WIDTH, h - 2 * BORDER_WIDTH);
 }
+*/
