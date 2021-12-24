@@ -347,6 +347,7 @@ void clientmessage(XEvent *e) {
   if (e->xclient.message_type        == netatoms[NET_WM_STATE] && (
         (unsigned)e->xclient.data.l[1] == netatoms[NET_FULLSCREEN]
         || (unsigned)e->xclient.data.l[2] == netatoms[NET_FULLSCREEN])) {
+    ;
     setfullscreen(c, d, (e->xclient.data.l[0] == 1 || (e->xclient.data.l[0] == 2 && !c->isfull)));
     /*if (!(c->isfloat || c->istrans) || !d->head->next) arrange(d);
     if (!c->istrans || !d->head->next)
@@ -481,6 +482,7 @@ void focus(Client *c, Desktop *d) {
     d->prev = d->curr; 
     d->curr = c; 
   }
+
   /* restack clients
    *
    * num of n:all fl:fullscreen ft:floating/transient windows */
@@ -509,7 +511,7 @@ void focus(Client *c, Desktop *d) {
   Window w[n];
   ft = n;
   //w[(d->curr->isfloat || d->curr->istrans) ? 0 : ft] = d->curr->win;
-  w[(d->curr->istrans) ? 0 : ft] = d->curr->win;
+  w[0] = d->curr->win;
   for (/*fl += !ISIMM(d->curr) ? 1 : 0,*/ c = d->head; c; c = c->next) {
   //for (c = d->head; c; c = c->next) {
     XSetWindowBorder(dpy, c->win, c == d->curr ? win_focus : win_unfocus);
@@ -519,7 +521,9 @@ void focus(Client *c, Desktop *d) {
     XSetWindowBorderWidth(dpy, c->win, c->isfull ? 0 : BORDER_WIDTH);
     if (c != d->curr) 
       w[c->isfull ? --fl : ISIMM(c) ? --ft : --n] = c->win;*/
-    w[--n] = c->win;
+    //XSetWindowBorderWidth(dpy, c->win, c->isfull ? 0 : BORDER_WIDTH);
+    if (c != d->curr) 
+      w[--n] = c->win;
     if (CLICK_TO_FOCUS || c == d->curr) 
       grabbuttons(c);
   }
@@ -727,8 +731,26 @@ void maprequest(XEvent *e) {
   c = addwindow(w, (d = &desktops[newdsk]));
   c->istrans = XGetTransientForHint(dpy, c->win, &w);
   /*if ((c->isfloat = (floating || d->mode == FLOAT)) && !c->istrans)*/
-  //if (!c->istrans)
     //XMoveWindow(dpy, c->win, (ww - wa.width) / 2, (wh - wa.height) / 2);
+  c->w = wa.width;
+  c->h = wa.height;
+  unsigned n = 0;
+  Client *f = d->curr;
+  int x = 0, y = 0;
+  for (; f && f->next; f = f->next, ++n) {
+    x += f->w;
+    if (x > ww) {
+      x = 0;
+      y += f->h;
+    }
+    
+    if (y > wh)
+      x = y = 0;
+  }
+  
+  c->x = x;
+  c->y = y;
+  XMoveWindow(dpy, c->win, c->x, c->y);
 
   int i;
   unsigned long l;
@@ -822,16 +844,12 @@ void mousemotion(const Arg *arg) {
  */
 void monocle(int x, int y, int w, int h, const Desktop *d) {
   Client *c = d->curr;
-  /*if (!ISIMM(c))*/
   if (!c->isfull) {
-    c->x = 0;
-    c->y = 0;
-    c->w = 80;
-    c->h = 80;
     XMoveResizeWindow(dpy, c->win, x, y, w, h);
     XSetWindowBorderWidth(dpy, c->win, 0);
     c->isfull = True;
   }
+
   else {
     XMoveResizeWindow(dpy, c->win, c->x, c->y, c->w, c->h);
     XSetWindowBorderWidth(dpy, c->win, BORDER_WIDTH);
@@ -1194,11 +1212,18 @@ void stack(int x, int y, int w, int h, const Desktop *d) {
   Client *c = NULL, *t = NULL; 
   int n = 0, p = 0, z = h, ma = w * MASTER_SIZE + d->masz;
   /* count stack windows and grab first non-floating, non-fullscreen window */
-  for (t = d->head; t; t = t->next)
+  for (t = d->head; t; t = t->next) {
     if (!ISIMM(t)) { 
       if (c) ++n;
-      else c = t; 
+      else c = t;
     }
+
+    if (t->isfull && !ISIMM(t)) {
+      XMoveResizeWindow(dpy, c->win, x, y, w - 2 * BORDER_WIDTH, h - 2 * BORDER_WIDTH);
+      XSetWindowBorderWidth(dpy, t->win, BORDER_WIDTH);
+      t->isfull = False;
+    }
+  }
 
   if (c && n)
     XMoveResizeWindow(dpy, c->win, x, y, w - 2 * BORDER_WIDTH, h - 2 * BORDER_WIDTH);
@@ -1381,10 +1406,6 @@ int xerrorstart(__attribute__((unused)) Display *dpy, __attribute__((unused)) XE
 }
 
 int main(int argc, char *argv[]) {
-  if (argc == 2 && !strncmp(argv[1], "-v", 3))
-    errx(EXIT_SUCCESS, "version: %s - by c00kiemon5ter >:3 omnomnomnom", VERSION);
-  else if (argc != 1) 
-    errx(EXIT_FAILURE, "usage: man monsterwm");
   if (!(dpy = XOpenDisplay(NULL)))
     errx(EXIT_FAILURE, "cannot open display");
   

@@ -3,9 +3,9 @@ TODO
 
 * ~~Fix Makefile, BSD support~~
 * ~~Maintain monocle state in the case when c->next = c~~
-* Store client size, pos
-* Restore monocles to last known size
-* Non-imposed Client placement
+* ~~Store client size, pos~~
+* ~~Restore monocles to last known size~~
+* ~~Non-imposed Client placement~~
 * Enumerate/export client + wm positions
 * Integrate dynamic panel
 * ~~Manipulate all clients unless strictly immutable~~
