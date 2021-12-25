@@ -65,16 +65,16 @@ static Key keys[] = {
     {  MOD4,             XK_k,          resize_stack,      { .i = +10 }}, /* grow     size in px */
     {  MOD4,             XK_equal,      rotate,            { .i = -1 }},
     {  MOD4,             XK_minus,      rotate,            { .i = +1 }},
-    {  MOD4,             XK_Down,       move_down,         { NULL }},
-    {  MOD4,             XK_Up,         move_up,           { NULL }},
+    {  MOD4,             XK_o,       move_down,         { NULL }},
+    {  MOD4,             XK_p,         move_up,           { NULL }},
     {  MOD4,             XK_bracketleft, rotate_filled,    { .i = -1 }},
     {  MOD4,             XK_bracketright, rotate_filled,   { .i = +1 }},
     {  MOD4,             XK_grave,      last_desktop,      { NULL }},
     {  MOD4,             XK_Return,     swap_master,       { NULL }},
-    {  MOD4,             XK_t,          switch_mode,       { .i = TILE }},
-    {  MOD4,             XK_m,          switch_mode,       { .i = MONOCLE }},
-    {  MOD4,             XK_b,          switch_mode,       { .i = BSTACK }},
-    {  MOD4,             XK_g,          switch_mode,       { .i = GRID }},
+    {  MOD4,             XK_t,          setlayout,         { .i = TILE }},
+    {  MOD4,             XK_m,          setlayout,         { .i = MONOCLE }},
+    {  MOD4,             XK_b,          setlayout,         { .i = BSTACK }},
+    {  MOD4,             XK_g,          setlayout,         { .i = GRID }},
     {  MOD4|SHIFT,       XK_r,          quit,              { .i = 0 }}, /* quit with exit value 0 */
     {  MOD4|SHIFT,       XK_q,          quit,              { .i = 1 }}, /* quit with exit value 1 */
     {  MOD4,             XK_Return,     spawn,             { .com = termcmd }},
@@ -98,8 +98,8 @@ static Key keys[] = {
  * mouse shortcuts
  */
 static Button buttons[] = {
-    {  MOD1,    Button1,     mousemotion,   {.i = MOVE}},
-    {  MOD1,    Button3,     mousemotion,   {.i = RESIZE}},
+    {  0,    Button1,     mousemotion,   {.i = MOVE}},
+    {  0,    Button3,     mousemotion,   {.i = RESIZE}},
     {  MOD4,    Button3,     spawn,         {.com = menucmd}},
 };
 #endif

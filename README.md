@@ -6,7 +6,8 @@ TODO
 * ~~Store client size, pos~~
 * ~~Restore monocles to last known size~~
 * ~~Non-imposed Client placement~~
-* Enumerate/export client + wm positions
+* ~~Transform client using mouse~~
+* Enumerate/export client list + wm positions
 * Integrate dynamic panel
 * ~~Manipulate all clients unless strictly immutable~~
 * Destroy clients on quit (Maintain clients on reload)
@@ -19,17 +20,17 @@ TODO
 
 A fork of monsterwm
 
-→ tiny and monstrous!
+~~→ tiny but monstrous!~~
 ---------------------
 
-**monsterwm** is a minimal, lightweight, tiny but monstrous dynamic tiling window manager.
+~~**monsterwm** is a minimal, lightweight, tiny but monstrous dynamic tiling window manager.
 It will try to stay as small as possible. Currently under 700 lines with the config file included.
 It provides a set of different layout modes (see below), including floating mode support.
 Each virtual desktop has its own properties, unaffected by other desktops' or monitors' settings.
 For [screenshots][scrot] and ramblings/updates check the [topic on ArchLinux forums][monsterwm].
 
   [scrot]: https://bbs.archlinux.org/viewtopic.php?id=141853
-  [monsterwm]: https://bbs.archlinux.org/viewtopic.php?id=132122
+  [monsterwm]: https://bbs.archlinux.org/viewtopic.php?id=132122~~
 
 
 Modes

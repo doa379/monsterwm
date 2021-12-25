@@ -67,7 +67,7 @@ static void rotate(const Arg *);
 static void rotate_filled(const Arg *);
 static void spawn(const Arg *);
 static void swap_master();
-static void switch_mode(const Arg *);
+static void setlayout(const Arg *);
 
 #include "config.h"
 
@@ -734,14 +734,13 @@ void maprequest(XEvent *e) {
     //XMoveWindow(dpy, c->win, (ww - wa.width) / 2, (wh - wa.height) / 2);
   c->w = wa.width;
   c->h = wa.height;
-  unsigned n = 0;
-  Client *f = d->curr;
-  int x = 0, y = 0;
-  for (; f && f->next; f = f->next, ++n) {
-    x += f->w;
+  int x = 0, y = 0, minh = 0;
+  for (Client *c = d->curr; c && c->next; c = c->next) {
+    x += c->w;
+    minh = !minh || c->h < minh ? c->h : minh;
     if (x > ww) {
       x = 0;
-      y += f->h;
+      y += minh;
     }
     
     if (y > wh)
@@ -849,7 +848,6 @@ void monocle(int x, int y, int w, int h, const Desktop *d) {
     XSetWindowBorderWidth(dpy, c->win, 0);
     c->isfull = True;
   }
-
   else {
     XMoveResizeWindow(dpy, c->win, c->x, c->y, c->w, c->h);
     XSetWindowBorderWidth(dpy, c->win, BORDER_WIDTH);
@@ -865,7 +863,7 @@ void move_down(void) {
   if (!d->curr || !d->head->next)
     return;
   /* p is previous, c is current, n is next, if current is head n is last */
-  Client *p = prevclient(d->curr, d), *n = (d->curr->next) ? d->curr->next:d->head;
+  Client *p = prevclient(d->curr, d), *n = (d->curr->next) ? d->curr->next : d->head;
   /*
    * if c is head, swapping with n should update head to n
    * [c]->[n]->..  ==>  [n]->[c]->..
@@ -885,7 +883,7 @@ void move_down(void) {
    * else c will take the place of n, so c-next will be n->next
    * ..->[p]->[c]->[n]->..  ==>  ..->[p]->[n]->[c]->..
    */
-  d->curr->next = (d->curr->next) ? n->next:n;
+  d->curr->next = (d->curr->next) ? n->next : n;
   /*
    * if c was swapped with n then they now point to the same ->next. n->next should be c
    * ..->[p]->[c]->[n]->..  ==>  ..->[p]->[n]->..  ==>  ..->[p]->[n]->[c]->..
@@ -903,6 +901,7 @@ void move_down(void) {
      if (!d->curr->isfloat && !d->curr->istrans) 
      arrange(d);
    */
+  arrange(d, TILE);
 }
 
 /**
@@ -947,11 +946,12 @@ void move_up(void) {
    * [c]->[n]->..->[p]->NULL  ==>  [n]->..->[p]->[c]->NULL
    *  ^head         ^last           ^head         ^last
    */
-  d->curr->next = (d->curr->next == d->head) ? NULL:p;
+  d->curr->next = (d->curr->next == d->head) ? NULL : p;
   /*
      if (!d->curr->isfloat && !d->curr->istrans) 
      arrange(d);
    */
+  arrange(d, TILE);
 }
 
 /**
@@ -1063,11 +1063,13 @@ void removeclient(Client *c, Desktop *d) {
  * stack clients. the size of a window can't be less than MINWSZ
  */
 void resize_master(const Arg *arg) {
-  /*
-     Desktop *d = &desktops[currdeskidx];
-     int msz = (d->mode == BSTACK ? wh : ww) * MASTER_SIZE + (d->masz += arg->i);
-     if (msz >= MINWSZ && (d->mode == BSTACK ? wh:ww) - msz >= MINWSZ) arrange(d);
-     else d->masz -= arg->i;*/ /* reset master area size */
+  Desktop *d = &desktops[currdeskidx];
+  int mode = TILE;
+  int msz = (mode == BSTACK ? wh : ww) * MASTER_SIZE + (d->masz += arg->i);
+  if (msz >= MINWSZ && (mode == BSTACK ? wh:ww) - msz >= MINWSZ)
+    arrange(d, mode);
+  else 
+    d->masz -= arg->i;
 }
 
 /**
@@ -1075,7 +1077,7 @@ void resize_master(const Arg *arg) {
  */
 void resize_stack(const Arg *arg) {
   desktops[currdeskidx].sasz += arg->i;
-  /*arrange(&desktops[currdeskidx], FLOAT);*/
+  arrange(&desktops[currdeskidx], TILE);
 }
 
 /**
@@ -1316,7 +1318,7 @@ void swap_master(void) {
  }
  */
 
-void switch_mode(const Arg *arg) {
+void setlayout(const Arg *arg) {
   Desktop *d = &desktops[currdeskidx];
   /*d->mode = arg->i;*/
   /*
