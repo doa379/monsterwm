@@ -30,9 +30,9 @@
  * if desktop is negative, then current is assumed
  */
 static const Rule rules[] = { \
-    /*  class     desktop  follow */
-    { "MPlayer",     3,    True },
-    { "Gimp",        0,    False },
+    /*  class     mon desktop  follow */
+    { "MPlayer",  0,   3,    True },
+    { "Gimp",     0,   0,    False },
 };
 
 /* helper for spawning shell commands */
@@ -50,6 +50,10 @@ static const char *statuscmd[] = { "cat", STATUSFILE, "|", "dmenu", NULL };
     {  MOD4,             K,              change_desktop, {.i = N}}, \
     {  MOD4|ShiftMask,   K,              client_to_desktop, {.i = N}},
 
+#define MONITORCHANGE(K,N) \
+    {  MOD4,             K,              change_monitor, {.i = N}}, \
+    {  MOD4|ShiftMask,   K,              client_to_monitor, {.i = N}},
+
 /**
  * keyboard shortcuts
  */
@@ -59,14 +63,15 @@ static Key keys[] = {
     {  MOD4|SHIFT,       XK_c,          killclient,        { NULL }},
     {  MOD4,             XK_Tab,        next_win,          { NULL }},
     {  MOD4|SHIFT,       XK_Tab,        prev_win,          { NULL }},
+    {  MOD4,             XK_space,      status,            { NULL }},
     {  MOD4,             XK_h,          resize_master,     { .i = -10 }}, /* decrease size in px */
     {  MOD4,             XK_l,          resize_master,     { .i = +10 }}, /* increase size in px */
     {  MOD4,             XK_j,          resize_stack,      { .i = -10 }}, /* shrink   size in px */
     {  MOD4,             XK_k,          resize_stack,      { .i = +10 }}, /* grow     size in px */
     {  MOD4,             XK_equal,      rotate,            { .i = -1 }},
     {  MOD4,             XK_minus,      rotate,            { .i = +1 }},
-    {  MOD4,             XK_o,       move_down,         { NULL }},
-    {  MOD4,             XK_p,         move_up,           { NULL }},
+    {  MOD4,             XK_o,          move_down,         { NULL }},
+    {  MOD4,             XK_p,          move_up,           { NULL }},
     {  MOD4,             XK_bracketleft, rotate_filled,    { .i = -1 }},
     {  MOD4,             XK_bracketright, rotate_filled,   { .i = +1 }},
     {  MOD4,             XK_grave,      last_desktop,      { NULL }},
@@ -92,6 +97,8 @@ static Key keys[] = {
        DESKTOPCHANGE(    XK_2,                             1)
        DESKTOPCHANGE(    XK_3,                             2)
        DESKTOPCHANGE(    XK_4,                             3)
+       MONITORCHANGE(    XK_F1,                            0)
+       MONITORCHANGE(    XK_F2,                            1)
 };
 
 /**

@@ -1,17 +1,25 @@
 # Makefile for mwm - see LICENSE for license and copyright information
 
 WMNAME  = mwm
+VERSION = 0.1
 PREFIX ?= /usr/local
 BINDIR ?= ${PREFIX}/bin
 MANPREFIX = ${PREFIX}/share/man
-X11INC = -I /usr/X11R6/include
-X11LIB = -L /usr/X11R6/lib -l X11 -l c
-INCS = -I . -I /usr/include -I /usr/local/include ${X11INC}
-LIBS = -L /usr/lib -L /usr/local/lib ${X11LIB}
+X11INC = -I /usr/X11R6/include \
+  -I /usr/include \
+  -I /usr/local/include \
+  -I /usr/lib/dbus-1.0/include \
+  -I /usr/local/lib/dbus-1.0/include \
+  -I /usr/include/dbus-1.0 \
+  -I /usr/local/include/dbus-1.0 \
+  -I .
+X11LIB = -L /usr/X11R6/lib -L /usr/lib -L /usr/local/lib 
+LIBS = -l c -l X11 -l Xinerama -l dbus-1
+INCS = ${X11INC}
 CFLAGS   = -std=c99 -fPIE -fPIC -pedantic -Wall -Wextra ${INCS} -DVERSION=\"${VERSION}\"
-LDFLAGS  = ${LIBS}
+LDFLAGS  = ${X11LIB} ${LIBS}
 CC 	 = cc
-SRC  = ${WMNAME}.c
+SRC  = ${WMNAME}.c dbus.c
 OBJ  = ${SRC:.c=.o}
 
 all: ${WMNAME}
@@ -40,7 +48,7 @@ ${WMNAME}_dbg: $(OBJ)
 
 clean:
 	@echo cleaning
-	@rm -fv ${WMNAME} $(WMNAME)_dbg ${OBJ}
+	@rm -fv ${WMNAME} $(WMNAME)_dbg ${OBJ} *.core
 
 install: all
 	@echo installing executable file(s) to ${DESTDIR}${PREFIX}/bin

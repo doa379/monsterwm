@@ -1,6 +1,9 @@
+mwm
 monsterwm
+mwm-bak.c
 *.o
 *.swp
 *~
 *.diff
+*.core
 config.h

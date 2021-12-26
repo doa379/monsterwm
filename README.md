@@ -8,11 +8,12 @@ TODO
 * ~~Non-imposed Client placement~~
 * ~~Transform client using mouse~~
 * Enumerate/export client list + wm positions
-* Integrate dynamic panel
+* ~~Integrate dynamic panel~~
+* ~~Impl. DBus notifications~~
 * ~~Manipulate all clients unless strictly immutable~~
 * Destroy clients on quit (Maintain clients on reload)
 * Swap master on Tile toggle
-* MM support
+* ~~MM support~~
 
 
 ~~monsterwm~~ mwm
