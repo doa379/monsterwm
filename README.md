@@ -8,7 +8,7 @@ TODO
 * ~~Non-imposed Client placement~~
 * ~~Transform client using mouse~~
 * ~~Enumerate/export client list + wm positions~~
-* ~~Integrate dynamic panel~~
+* ~~Integrate dynamic 'panel'~~
 * ~~Impl. DBus notifications~~
 * ~~Manipulate all clients unless strictly immutable~~
 * Destroy clients on quit (Maintain clients on reload)
@@ -19,7 +19,16 @@ TODO
 ~~monsterwm~~ mwm
 =========
 
-A fork of monsterwm
+mwm is a fork of monsterwm. mwm is a static tiling window manager. Short of unexpectedly ruining
+any arrangement of windows through dynamic tiling. mwm more generally, also aims to be somewhat
+more flexible to operate than "dwm". The mantra here is to not let the wm get in the way of 
+workflows or types of flows thereof. mwm is open-ended by design. mwm has even lower resource 
+requirements than "dwm". There is no Windows-esque panel native to mwm builtin.
+
+Supported to run on FreeBSD, Linux (musl libc and glibc distros).
+
+Feature requests and bug reports are welcome.
+
 
 ~~→ tiny but monstrous!~~
 ---------------------
