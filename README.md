@@ -7,7 +7,7 @@ TODO
 * ~~Restore monocles to last known size~~
 * ~~Non-imposed Client placement~~
 * ~~Transform client using mouse~~
-* Enumerate/export client list + wm positions
+* ~~Enumerate/export client list + wm positions~~
 * ~~Integrate dynamic panel~~
 * ~~Impl. DBus notifications~~
 * ~~Manipulate all clients unless strictly immutable~~
