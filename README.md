@@ -14,6 +14,8 @@ TODO
 * Destroy clients on quit (Maintain clients on reload)
 * Swap master on Tile toggle
 * ~~MM support~~
+* Fix focus()
+* Init client state
 
 
 ~~monsterwm~~ mwm
@@ -23,7 +25,8 @@ mwm is a fork of monsterwm. mwm is a static tiling window manager. Short of unex
 any arrangement of windows through dynamic tiling. mwm more generally, also aims to be somewhat
 more flexible to operate than "dwm". The mantra here is to not let the wm get in the way of 
 workflows or types of flows thereof. mwm is open-ended by design. mwm has even lower resource 
-requirements than "dwm". There is no Windows-esque panel native to mwm builtin.
+requirements than "dwm". There is no Windows-esque panel native to mwm builtin. Status reports
+are sent through the dbus protocol and presented as OSD notifications.
 
 Supported to run on FreeBSD, Linux (musl libc and glibc distros).
 

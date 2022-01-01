@@ -174,6 +174,7 @@ static void grabkeys(void);
 static void grid(int, int, int, int, const Desktop *);
 static void keypress(XEvent *);
 static void maprequest(XEvent *);
+static void clientname(Client *);
 static void monocle(int, int, int, int, const Desktop *);
 static Client *prevclient(Client *, Desktop *);
 static void propertynotify(XEvent *);
@@ -914,6 +915,31 @@ void maprequest(XEvent *e) {
   c->x = x;
   c->y = y;
   XMoveWindow(dpy, c->win, c->x, c->y);
+  clientname(c);
+  int i;
+  unsigned long l;
+  unsigned char *state = NULL;
+  Atom a;
+  if (XGetWindowProperty(dpy, c->win, netatoms[NET_WM_STATE], 0L, sizeof a,
+        False, XA_ATOM, &a, &i, &l, &l, &state) == Success && state)
+    setfullscreen(c, d, m, (*(Atom *) state == netatoms[NET_FULLSCREEN]));
+  if (state)
+    XFree(state);
+
+  if (m->currdeskidx == newdsk)
+    XMapWindow(dpy, c->win);
+  if (follow) { 
+    change_monitor(&(Arg){ .i = newmon });
+    change_desktop(&(Arg){ .i = newdsk });
+  }
+
+  focus(c, d);
+  if (!follow)
+    desktopinfo(m);
+}
+
+void clientname(Client *c)
+{
   XTextProperty name;
   if (XGetWMName(dpy, c->win, &name)) {
     char **list = NULL;
@@ -928,27 +954,6 @@ void maprequest(XEvent *e) {
     c->NAME[sizeof c->NAME - 1] = '\0';
     XFree(name.value);
   }
-
-  int i;
-  unsigned long l;
-  unsigned char *state = NULL;
-  Atom a;
-  if (XGetWindowProperty(dpy, c->win, netatoms[NET_WM_STATE], 0L, sizeof a,
-        False, XA_ATOM, &a, &i, &l, &l, &state) == Success && state)
-    setfullscreen(c, d, m, (*(Atom *)state == netatoms[NET_FULLSCREEN]));
-  if (state)
-    XFree(state);
-
-  if (m->currdeskidx == newdsk)
-    XMapWindow(dpy, c->win);
-  if (follow) { 
-    change_monitor(&(Arg){ .i = newmon });
-    change_desktop(&(Arg){ .i = newdsk });
-  }
-
-  focus(c, d);
-  if (!follow)
-    desktopinfo(m);
 }
 
 /**
