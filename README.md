@@ -15,8 +15,10 @@ TODO
 * Swap master on Tile toggle
 * ~~MM support~~
 * Fix focus()
-* Init client state
-
+* ~~Init client state~~
+* Assign fixed
+* Covering algorithm
+* WM_CLASS
 
 ~~monsterwm~~ mwm
 =========
