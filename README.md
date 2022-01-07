@@ -12,13 +12,13 @@ TODO
 * ~~Impl. DBus notifications~~
 * ~~Manipulate all clients unless strictly immutable~~
 * Destroy clients on quit (Maintain clients on reload)
-* Swap master on Tile toggle
 * ~~MM support~~
-* Fix focus()
+* ~~Fix focus()~~
 * ~~Init client state~~
-* Assign fixed
-* Covering algorithm
+* ~~Assign fixed~~
+* ~~Covering algorithm~~
 * WM_CLASS
+* FS/Monocle toggle
 
 ~~monsterwm~~ mwm
 =========

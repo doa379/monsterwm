@@ -42,7 +42,9 @@ static const Rule rules[] = { \
  * custom commands
  * must always end with ', NULL };'
  */
-static const char *termcmd[] = { "term",     NULL };
+
+/* static const char *termcmd[] = { "term",     NULL };*/
+static const char *termcmd[] = { "xterm", "-geometry", "20x10", NULL };
 static const char *menucmd[] = { "dmenu_run", NULL };
 
 #define DESKTOPCHANGE(K,N) \
@@ -67,8 +69,8 @@ static Key keys[] = {
     {  MOD4,             XK_l,          resize_master,     { .i = +10 }}, /* increase size in px */
     {  MOD4,             XK_j,          resize_stack,      { .i = -10 }}, /* shrink   size in px */
     {  MOD4,             XK_k,          resize_stack,      { .i = +10 }}, /* grow     size in px */
-    {  MOD4,             XK_equal,      rotate,            { .i = -1 }},
-    {  MOD4,             XK_minus,      rotate,            { .i = +1 }},
+    {  MOD4,             XK_minus,      rotate,            { .i = -1 }},
+    {  MOD4,             XK_equal,      rotate,            { .i = +1 }},
     {  MOD4,             XK_o,          move_down,         { NULL }},
     {  MOD4,             XK_p,          move_up,           { NULL }},
     {  MOD4,             XK_bracketleft, rotate_filled,    { .i = -1 }},
@@ -81,8 +83,9 @@ static Key keys[] = {
     {  MOD4,             XK_g,          setlayout,         { .i = GRID }},
     {  MOD4|SHIFT,       XK_r,          quit,              { .i = 0 }}, /* quit with exit value 0 */
     {  MOD4|SHIFT,       XK_q,          quit,              { .i = 1 }}, /* quit with exit value 1 */
-    {  MOD4|SHIFT,       XK_Return,     spawn,             { .com = termcmd }},
-    {  MOD4,             XK_Escape,     spawn,             { .com = menucmd }},
+    {  MOD4|SHIFT,       XK_Return,     spawn,             { .cmd = termcmd }},
+    {  MOD4,             XK_Escape,     spawn,             { .cmd = menucmd }},
+    {  MOD4,             XK_s,          togglefixed,       { NULL }},
     {  MOD4|CTRL,        XK_j,          moveresize,        { .v = (int []){   0,  25,   0,   0 } }}, /* move down  */
     {  MOD4|CTRL,        XK_k,          moveresize,        { .v = (int []){   0, -25,   0,   0 } }}, /* move up    */
     {  MOD4|CTRL,        XK_l,          moveresize,        { .v = (int []){  25,   0,   0,   0 } }}, /* move right */
@@ -103,9 +106,9 @@ static Key keys[] = {
  * mouse shortcuts
  */
 static Button buttons[] = {
-    {  0,       Button2,     mousemotion,   {.i = MOVE}},
-    {  CTRL,    Button3,     mousemotion,   {.i = RESIZE}},
-    {  MOD4,    Button3,     spawn,         {.com = menucmd}},
+    {  0,       Button2,     mousemotion,   { .i = MOVE }},
+    {  CTRL,    Button3,     mousemotion,   { .i = RESIZE }},
+    {  MOD4,    Button3,     spawn,         { .cmd = menucmd }},
 };
 #endif
 
