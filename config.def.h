@@ -43,17 +43,17 @@ static const Rule rules[] = { \
  * must always end with ', NULL };'
  */
 
-/* static const char *termcmd[] = { "term",     NULL };*/
-static const char *termcmd[] = { "xterm", "-geometry", "20x10", NULL };
+static const char *termcmd[] = { "term",      NULL };
 static const char *menucmd[] = { "dmenu_run", NULL };
 
 #define DESKTOPCHANGE(K,N) \
-    {  MOD4,             K,              change_desktop, {.i = N}}, \
-    {  MOD4|ShiftMask,   K,              client_to_desktop, {.i = N}},
+    {  MOD4,                             K,              to_client, {.i = N}}, \
+    {  MOD4 | ShiftMask,                 K,              change_desktop, {.i = N}}, \
+    {  MOD4 | ControlMask | ShiftMask,   K,              client_to_desktop, {.i = N}},
 
 #define MONITORCHANGE(K,N) \
-    {  MOD4,             K,              change_monitor, {.i = N}}, \
-    {  MOD4|ShiftMask,   K,              client_to_monitor, {.i = N}},
+    {  MOD4,                             K,              change_monitor, {.i = N}}, \
+    {  MOD4 | ShiftMask,                 K,              client_to_monitor, {.i = N}},
 
 /**
  * keyboard shortcuts
@@ -77,6 +77,7 @@ static Key keys[] = {
     {  MOD4,             XK_bracketright, rotate_filled,   { .i = +1 }},
     {  MOD4,             XK_grave,      last_desktop,      { NULL }},
     {  MOD4,             XK_Return,     swap_master,       { NULL }},
+    {  MOD4,             XK_f,          setfloating,       { NULL }},
     {  MOD4,             XK_t,          setlayout,         { .i = TILE }},
     {  MOD4,             XK_m,          setlayout,         { .i = MONOCLE }},
     {  MOD4,             XK_b,          setlayout,         { .i = BSTACK }},
@@ -94,10 +95,16 @@ static Key keys[] = {
     {  MOD4|CTRL|SHIFT,  XK_k,          moveresize,        { .v = (int []){   0,   0,   0, -25 } }}, /* height shrink */
     {  MOD4|CTRL|SHIFT,  XK_l,          moveresize,        { .v = (int []){   0,   0,  25,   0 } }}, /* width grow    */
     {  MOD4|CTRL|SHIFT,  XK_h,          moveresize,        { .v = (int []){   0,   0, -25,   0 } }}, /* width shrink  */
-       DESKTOPCHANGE(    XK_1,                             0)
-       DESKTOPCHANGE(    XK_2,                             1)
-       DESKTOPCHANGE(    XK_3,                             2)
-       DESKTOPCHANGE(    XK_4,                             3)
+       DESKTOPCHANGE(    XK_1,                             1)
+       DESKTOPCHANGE(    XK_2,                             2)
+       DESKTOPCHANGE(    XK_3,                             3)
+       DESKTOPCHANGE(    XK_4,                             4)
+       DESKTOPCHANGE(    XK_5,                             5)
+       DESKTOPCHANGE(    XK_6,                             6)
+       DESKTOPCHANGE(    XK_7,                             7)
+       DESKTOPCHANGE(    XK_8,                             8)
+       DESKTOPCHANGE(    XK_9,                             9)
+       DESKTOPCHANGE(    XK_0,                             10)
        MONITORCHANGE(    XK_F1,                            0)
        MONITORCHANGE(    XK_F2,                            1)
 };

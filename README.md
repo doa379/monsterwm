@@ -17,7 +17,7 @@ TODO
 * ~~Init client state~~
 * ~~Assign fixed~~
 * ~~Covering algorithm~~
-* WM_CLASS
+* ~~WM_CLASS~~
 * FS/Monocle toggle
 
 ~~monsterwm~~ mwm
