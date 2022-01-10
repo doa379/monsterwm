@@ -13,12 +13,12 @@ TODO
 * ~~Manipulate all clients unless strictly immutable~~
 * Destroy clients on quit (Maintain clients on reload)
 * ~~MM support~~
-* ~~Fix focus()~~
 * ~~Init client state~~
 * ~~Assign fixed~~
 * ~~Covering algorithm~~
 * ~~WM_CLASS~~
 * FS/Monocle toggle
+* Fix focus()
 
 ~~monsterwm~~ mwm
 =========

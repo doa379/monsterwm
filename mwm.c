@@ -394,7 +394,7 @@ void clientmessage(XEvent *e) {
  */
 void configurerequest(XEvent *e) {
   XConfigureRequestEvent *ev = &e->xconfigurerequest;
-  XWindowChanges wc = { ev->x, ev->y,  ev->width, ev->height, ev->border_width, ev->above, ev->detail };
+  XWindowChanges wc = { ev->x, ev->y, ev->width, ev->height, ev->border_width, ev->above, ev->detail };
   if (XConfigureWindow(dpy, ev->window, ev->value_mask, &wc))
     XSync(dpy, False);
 }
@@ -599,7 +599,8 @@ void grid(int x, int y, int w, int h, const Desktop *d) {
       ++i;
     if (i / rows + 1 > cols - n%cols)
       rows = n / cols + 1;
-    XMoveResizeWindow(dpy, c->win, x + cn*cw, y + rn * ch / rows, cw - BORDER_WIDTH, ch / rows - BORDER_WIDTH);
+    XMoveResizeWindow(dpy, c->win, c->x = x + cn * cw, c->y = y + rn * ch / rows, 
+      c->w = cw - BORDER_WIDTH, c->h = ch / rows - BORDER_WIDTH);
     if (++rn >= rows) { 
       rn = 0; 
       cn++;
@@ -714,49 +715,46 @@ void maprequest(XEvent *e) {
  *
  * finally, on ButtonRelease, ungrab the poitner.
  * event handling is passed back to run() function.
- *
- * once a window has been moved or resized, it's marked as floating.
  */
 void mousemotion(const Arg *arg) {
   Monitor *m = &mons[currmonidx]; Desktop *d = &m->desktops[m->currdeskidx];
   XWindowAttributes wa;
   XEvent ev;
-  if (!d->curr || !XGetWindowAttributes(dpy, d->curr->win, &wa))
+  Client *c = d->curr;
+  if (!c || !XGetWindowAttributes(dpy, c->win, &wa))
     return;
 
   if (arg->i == RESIZE) 
-    XWarpPointer(dpy, d->curr->win, d->curr->win, 0, 0, 0, 0, --wa.width, --wa.height);
-  int rx, ry, c, xw, yh; unsigned int v; Window w;
-  if (!XQueryPointer(dpy, root, &w, &w, &rx, &ry, &c, &c, &v) || w != d->curr->win)
+    XWarpPointer(dpy, c->win, c->win, 0, 0, 0, 0, --wa.width, --wa.height);
+  
+  int rx, ry, co, xw, yh; unsigned int v; Window w;
+  if (!XQueryPointer(dpy, root, &w, &w, &rx, &ry, &co, &co, &v) || w != c->win)
     return;
 
   if (XGrabPointer(dpy, root, False, BUTTONMASK|PointerMotionMask, GrabModeAsync,
         GrabModeAsync, None, None, CurrentTime) != GrabSuccess)
     return;
 
-  if (!d->curr->istrans)
-    focus(d->curr, d, m);
+  if (!c->istrans)
+    focus(c, d, m);
 
-  XRaiseWindow(dpy, d->curr->win);
+  XRaiseWindow(dpy, c->win);
   do {
     XMaskEvent(dpy, BUTTONMASK | PointerMotionMask | SubstructureRedirectMask, &ev);
     if (ev.type == MotionNotify) {
       xw = (arg->i == MOVE ? wa.x : wa.width)  + ev.xmotion.x - rx;
       yh = (arg->i == MOVE ? wa.y : wa.height) + ev.xmotion.y - ry;
       if (arg->i == RESIZE)
-        XResizeWindow(dpy, d->curr->win, xw > MINWSZ ? xw : wa.width, yh > MINWSZ ? yh : wa.height);
+        XResizeWindow(dpy, c->win, xw > MINWSZ ? (c->w = xw) : (c->w = wa.width), 
+            yh > MINWSZ ? (c->h = yh) : (c->h = wa.height));
       else if (arg->i == MOVE)
-        XMoveWindow(dpy, d->curr->win, xw, yh);
+        XMoveWindow(dpy, c->win, c->w = xw, c->h = yh);
     } else if (ev.type == ConfigureRequest || ev.type == MapRequest)
         events[ev.type](&ev);
   } while (ev.type != ButtonRelease);
   XUngrabPointer(dpy, CurrentTime);
 }
 
-/**
- * monocle aka max aka fullscreen mode/layout
- * each window should cover all the available screen space
- */
 void monocle(int x, int y, int w, int h, const Desktop *d) {
   Client *c = d->curr;
   if (c && (c->istrans || c->isfull))
@@ -868,19 +866,16 @@ void move_up(void) {
 void moveresize(const Arg *arg) {
   Monitor *m = &mons[currmonidx]; Desktop *d = &m->desktops[m->currdeskidx];
   XWindowAttributes wa;
-  if (!d->curr || !XGetWindowAttributes(dpy, d->curr->win, &wa))
+  Client *c = d->curr;
+  if (!c || !XGetWindowAttributes(dpy, c->win, &wa))
     return;
-  if (!d->curr->istrans)
-    focus(d->curr, d, m); 
-  XRaiseWindow(dpy, d->curr->win);
-  XMoveResizeWindow(dpy, d->curr->win, wa.x + ((int *) arg->v)[0], wa.y + ((int *) arg->v)[1],
-      wa.width + ((int *) arg->v)[2], wa.height + ((int *) arg->v)[3]);
+  if (!c->istrans)
+    focus(c, d, m); 
+  XRaiseWindow(dpy, c->win);
+  XMoveResizeWindow(dpy, c->win, c->x = wa.x + ((int *) arg->v)[0], c->y = wa.y + ((int *) arg->v)[1],
+      c->w = wa.width + ((int *) arg->v)[2], c->h = wa.height + ((int *) arg->v)[3]);
 }
 
-/**
- * cyclic focus the next window
- * if the window is the last on stack, focus head
- */
 void next_win(void) {
   Desktop *d = &mons[currmonidx].desktops[mons[currmonidx].currdeskidx];
   if (d->curr && d->head->next)
@@ -888,10 +883,6 @@ void next_win(void) {
   listclients(d);
 }
 
-/**
- * get the previous client from the given
- * if no such client, return NULL
- */
 Client *prevclient(Client *c, Desktop *d) {
   Client *p = NULL;
   if (c && d->head && d->head->next)
@@ -899,10 +890,6 @@ Client *prevclient(Client *c, Desktop *d) {
   return p;
 }
 
-/**
- * cyclic focus the previous window
- * if the window is head, focus the last stack window
- */
 void prev_win(void) {
   Desktop *d = &mons[currmonidx].desktops[mons[currmonidx].currdeskidx];
   if (d->curr && d->head->next)
@@ -927,21 +914,11 @@ void propertynotify(XEvent *e) {
   clientinfo(m);
 }
 
-/**
- * to quit just stop receiving events
- * run is stopped and control is back to main
- */
 void quit(const Arg *arg) {
   retval = arg->i;
   running = False;
 }
 
-/**
- * remove the specified client from the given desktop
- *
- * if c was the previous client, previous must be updated.
- * if c was the current client, current must be updated.
- */
 void removeclient(Client *c, Desktop *d, Monitor *m) {
   Client **p = NULL;
   for (p = &d->head; *p && (*p != c); p = &(*p)->next);
@@ -956,39 +933,25 @@ void removeclient(Client *c, Desktop *d, Monitor *m) {
   free(c);
 }
 
-/**
- * resize the master size
- * we should check for window size limits for both master and
- * stack clients. the size of a window can't be less than MINWSZ
- */
 void resize_master(const Arg *arg) {
   Monitor *m = &mons[currmonidx];
   Desktop *d = &m->desktops[m->currdeskidx];
   int msz = (d->mode == BSTACK ? m->h : m->w) * MASTER_SIZE + (d->masz += arg->i);
-  if (msz >= MINWSZ && (d->mode == BSTACK ? m->h:m->w) - msz >= MINWSZ) 
+  if (msz >= MINWSZ && (d->mode == BSTACK ? m->h : m->w) - msz >= MINWSZ) 
     arrange(d, m, TILE);
   else
     d->masz -= arg->i; /* reset master area size */
 }
 
-/**
- * resize the first stack window
- */
 void resize_stack(const Arg *arg) {
   mons[currmonidx].desktops[mons[currmonidx].currdeskidx].sasz += arg->i;
   arrange(&mons[currmonidx].desktops[mons[currmonidx].currdeskidx], &mons[currmonidx], TILE);
 }
 
-/**
- * jump and focus the next or previous desktop
- */
 void rotate(const Arg *arg) {
   change_desktop(&(Arg){ .i = (DESKTOPS + mons[currmonidx].currdeskidx + arg->i) % DESKTOPS + 1 });
 }
 
-/**
- * jump and focus the next non-empty desktop
- */
 void rotate_filled(const Arg *arg) {
   Monitor *m = &mons[currmonidx];
   int n = arg->i;
@@ -1167,25 +1130,25 @@ void stack(int x, int y, int w, int h, const Desktop *d) {
   }
   /* tile the first non-floating, non-fullscreen window to cover the master area */
   if (b)
-    XMoveResizeWindow(dpy, c->win, x, y, w - 2 * BORDER_WIDTH, ma - BORDER_WIDTH);
+    XMoveResizeWindow(dpy, c->win, c->x = x, c->y = y, c->w = w - 2 * BORDER_WIDTH, c->h = ma - BORDER_WIDTH);
   else
-    XMoveResizeWindow(dpy, c->win, x, y, ma - BORDER_WIDTH, h - 2 * BORDER_WIDTH);
+    XMoveResizeWindow(dpy, c->win, c->x = x, c->y = y, c->w = ma - BORDER_WIDTH, c->h = h - 2 * BORDER_WIDTH);
   /* tile the next non-floating, non-fullscreen (and first) stack window adding p */
   for (c = c->next; c && ISIMM(c); c = c->next);
   int cw = (b ? h : w) - 2 * BORDER_WIDTH - ma, ch = z - BORDER_WIDTH;
   if (b)
-    XMoveResizeWindow(dpy, c->win, x, y += ma, ch - BORDER_WIDTH + p, cw);
+    XMoveResizeWindow(dpy, c->win, c->x = x, c->y = y += ma, c->h = ch - BORDER_WIDTH + p, c->w = cw);
   else
-    XMoveResizeWindow(dpy, c->win, x += ma, y, cw, ch - BORDER_WIDTH + p);
+    XMoveResizeWindow(dpy, c->win, c->x = x += ma, c->y = y, c->w = cw, c->h = ch - BORDER_WIDTH + p);
   /* tile the rest of the non-floating, non-fullscreen stack windows */
   for (b ? (x += ch + p) : (y += ch + p), c = c->next; c; c = c->next) {
     if (ISIMM(c))
       continue;
     if (b) { 
-      XMoveResizeWindow(dpy, c->win, x, y, ch, cw); 
+      XMoveResizeWindow(dpy, c->win, c->x = x, c->y = y, c->h = ch, c->w = cw); 
       x += z;
     } else {
-      XMoveResizeWindow(dpy, c->win, x, y, cw, ch);
+      XMoveResizeWindow(dpy, c->win, c->x = x, c->y = y, c->w = cw, c->h = ch);
       y += z;
     }
   }
@@ -1333,7 +1296,7 @@ void coverfree(Client *c, Desktop *d, Monitor *m) {
     x = c->w + c->x;
     if (x + ww > m->w) {
       x = 0;
-      y = minh;
+      y = !minh || c->h < minh ? c->h : minh;
     }
     
     y += c->y;
