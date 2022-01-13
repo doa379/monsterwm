@@ -17,8 +17,11 @@ TODO
 * ~~Assign fixed~~
 * ~~Covering algorithm~~
 * ~~WM_CLASS~~
-* FS/Monocle toggle
+* Client name
+* ~~FS/Monocle toggle~~
+* ~~Simplify focus~~
 * Fix focus()
+* Refactor layouts
 
 ~~monsterwm~~ mwm
 =========

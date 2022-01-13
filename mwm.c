@@ -99,7 +99,7 @@ typedef struct Monitor {
   Desktop desktops[DESKTOPS];
 } Monitor;
 
-static Client *addwindow(Window w, Desktop *);
+static Client *addwindow(Window, Desktop *);
 static void buttonpress(XEvent *);
 static void cleanup();
 static void clientmessage(XEvent *);
@@ -143,7 +143,7 @@ static Window root;
 static Atom wmatoms[WM_COUNT], netatoms[NET_COUNT];
 static Monitor *mons;
 
-static void (*events[LASTEvent])(XEvent *e) = {
+static void (*events[LASTEvent])(XEvent *) = {
   [KeyPress]         = keypress,     [EnterNotify]    = enternotify,
   [MapRequest]       = maprequest,   [ClientMessage]  = clientmessage,
   [ButtonPress]      = buttonpress,  [DestroyNotify]  = destroynotify,
@@ -151,7 +151,7 @@ static void (*events[LASTEvent])(XEvent *e) = {
   [ConfigureRequest] = configurerequest, [FocusIn] = focusin,
 };
 
-static void (*layout[MODES])(int x, int y, int w, int h, const Desktop *d) = {
+static void (*layout[MODES])(int, int, int, int, const Desktop *) = {
   [TILE] = stack, [BSTACK] = stack, [GRID] = grid, [MONOCLE] = monocle,
 };
 
@@ -228,7 +228,8 @@ void change_desktop(const Arg *arg) {
   Desktop *d = &m->desktops[(m->prevdeskidx = m->currdeskidx)], *n = &m->desktops[(m->currdeskidx = arg->i - 1)];
   if (n->curr)
     XMapWindow(dpy, n->curr->win);
-  for (Client *c = n->head; c; c = c->next) XMapWindow(dpy, c->win);
+  for (Client *c = n->head; c; c = c->next)
+    XMapWindow(dpy, c->win);
   XChangeWindowAttributes(dpy, root, CWEventMask, &(XSetWindowAttributes){ .do_not_propagate_mask = SubstructureNotifyMask });
   for (Client *c = d->head; c; c = c->next)
     if (c != d->curr)
@@ -237,7 +238,7 @@ void change_desktop(const Arg *arg) {
     XUnmapWindow(dpy, d->curr->win);
   XChangeWindowAttributes(dpy, root, CWEventMask, &(XSetWindowAttributes){ .event_mask = ROOTMASK });
   if (n->head)
-    focus(n->curr, n, m); 
+    focus(n->curr, n, m);
   desktopinfo(m);
 }
 
@@ -458,26 +459,21 @@ void focus(Client *c, Desktop *d, Monitor *m) {
     d->curr = c;
   }
 
-  int n = 0, fl = 0, ft = 0;
-  for (c = d->head; c; c = c->next, ++n) 
-    if (ISIMM(c) && !c->isfixed) { 
-      fl++; 
-      if (!c->isfull) 
-        ft++;
-    }
-
-  Window w[n];
-  w[d->curr->istrans ? 0 : ft] = d->curr->win;
-  for (fl += !ISIMM(d->curr) ? 1 : 0, c = d->head; c; c = c->next) {
+  int n = 0;
+  for (c = d->head; c; c = c->next, ++n);
+  Window W[n];
+  W[0] = d->curr->win;
+  n = 1;
+  for (c = d->head; c; c = c->next) {
     XSetWindowBorder(dpy, c->win, (c != d->curr) ? win_unfocus : (m == &mons[currmonidx]) ? win_focus : win_infocus);
     XSetWindowBorderWidth(dpy, c->win, c->isfull || c->ismono ? 0 : BORDER_WIDTH);
-    if (c != d->curr) 
-      w[c->isfull ? --fl : ISIMM(c) && !c->isfixed ? --ft : --n] = c->win;
+    if (c != d->curr)
+      W[n++] = c->win;
     if (CLICK_TO_FOCUS || c == d->curr) 
       grabbuttons(c);
   }
 
-  XRestackWindows(dpy, w, LENGTH(w));
+  XRestackWindows(dpy, W, n);
   XSetInputFocus(dpy, d->curr->win, RevertToPointerRoot, CurrentTime);
   XChangeProperty(dpy, root, netatoms[NET_ACTIVE], XA_WINDOW, 32, PropModeReplace, (unsigned char *) &d->curr->win, 1);
   XSync(dpy, False);
@@ -583,6 +579,7 @@ void grid(int x, int y, int w, int h, const Desktop *d) {
       c->ismono = False;
     }
   }
+
   for (cols = 0; cols <= n / 2; cols++)
     if (cols * cols >= n)
       break; /* emulate square root */
@@ -966,6 +963,7 @@ void rotate_filled(const Arg *arg) {
  */
 void run(void) {
   XEvent ev;
+  running = True;
   while (running && !XNextEvent(dpy, &ev)) 
     if (events[ev.type])
       events[ev.type](&ev);
@@ -975,9 +973,9 @@ void setfullscreen(Client *c, Monitor *m, Bool fullscrn) {
   if (fullscrn != c->isfull)
     XChangeProperty(dpy, c->win, netatoms[NET_WM_STATE], XA_ATOM, 32, PropModeReplace, 
       (unsigned char *) ((c->isfull = fullscrn) ? &netatoms[NET_FULLSCREEN] : 0), fullscrn);
-  if (fullscrn) 
+  if (fullscrn)
     XMoveResizeWindow(dpy, c->win, m->x, m->y, m->w, m->h);
-  else if (!c->ismono)
+  else
     XMoveResizeWindow(dpy, c->win, c->x, c->y, c->w, c->h);
 
   XSetWindowBorderWidth(dpy, c->win, c->isfull || c->ismono ? 0 : BORDER_WIDTH);
@@ -1038,7 +1036,7 @@ void setup(void) {
   XSelectInput(dpy, root, ROOTMASK);
   XSync(dpy, False);
   XSetErrorHandler(xerror);
-  /***/
+  /***
   Window root_return, parent_return, *children;
   unsigned int nchildren;
   XQueryTree(dpy, root, &root_return, &parent_return, &children, &nchildren);
@@ -1052,7 +1050,7 @@ void setup(void) {
     XSendEvent(dpy, children[i], False, ROOTMASK, &ev);
   }
 
-  /***/
+  ***/
   XSync(dpy, False);
   grabkeys();
 }
@@ -1085,12 +1083,12 @@ void stack(int x, int y, int w, int h, const Desktop *d) {
       else 
         c = t;
     
-    if (t->ismono && !ISIMM(t)) {
-      XMoveResizeWindow(dpy, c->win, x, y, w - 2 * BORDER_WIDTH, h - 2 * BORDER_WIDTH);
-      XSetWindowBorderWidth(dpy, t->win, BORDER_WIDTH);
-      t->ismono = False;
+      if (t->ismono && !ISIMM(t)) {
+        XMoveResizeWindow(dpy, c->win, x, y, w - 2 * BORDER_WIDTH, h - 2 * BORDER_WIDTH);
+        XSetWindowBorderWidth(dpy, t->win, BORDER_WIDTH);
+        t->ismono = False;
+      }
     }
-  }
   /* if there is only one window (c && !n), it should cover the available screen space
    * if there is only one stack window, then we don't care about growth
    * if more than one stack windows (n > 1) adjustments may be needed.
@@ -1221,11 +1219,14 @@ int main(int ARGC, char *ARGV[]) {
     errx(EXIT_FAILURE, "usage: man monsterwm");
   if (!(dpy = XOpenDisplay(NULL)))
     errx(EXIT_FAILURE, "cannot open display");
-  setup();
-  notify_send("mwm", "WM init", 2, 1000);
-  run();
-  cleanup();
-  notify_send("mwm", "WM deinit", 2, 1000);
+  while (!retval) {
+    setup();
+    notify_send("mwm", "WM init", 2, 1000);
+    run();
+    cleanup();
+    notify_send("mwm", "WM deinit", 2, 1000);
+  }
+
   XCloseDisplay(dpy);
   return retval;
 }
@@ -1269,7 +1270,7 @@ void togglefixed(void) {
 void clientname(Client *c) {
   XTextProperty name;
   c->NAME[0] = '\0';
-  if ((XGetTextProperty(dpy, c->win, &name, netatoms[NET_WMNAME]) || 
+  if ((XGetTextProperty(dpy, c->win, &name, netatoms[NET_WMNAME]) ||
         XGetTextProperty(dpy, c->win, &name, XA_WM_NAME))
       && name.nitems) {
     char **list = NULL;

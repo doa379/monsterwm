@@ -78,8 +78,8 @@ static Key keys[] = {
     {  MOD4,             XK_grave,      last_desktop,      { NULL }},
     {  MOD4,             XK_Return,     swap_master,       { NULL }},
     {  MOD4,             XK_f,          setfloating,       { NULL }},
-    {  MOD4,             XK_t,          setlayout,         { .i = TILE }},
     {  MOD4,             XK_m,          setlayout,         { .i = MONOCLE }},
+    {  MOD4,             XK_t,          setlayout,         { .i = TILE }},
     {  MOD4,             XK_b,          setlayout,         { .i = BSTACK }},
     {  MOD4,             XK_g,          setlayout,         { .i = GRID }},
     {  MOD4|SHIFT,       XK_r,          quit,              { .i = 0 }}, /* quit with exit value 0 */
