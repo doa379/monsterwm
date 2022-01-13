@@ -22,6 +22,8 @@ TODO
 * ~~Simplify focus~~
 * Fix focus()
 * Refactor layouts
+* Bad implementation, needs significant refactor (This is Release -0.0)
+
 
 ~~monsterwm~~ mwm
 =========
@@ -140,38 +142,6 @@ All desktops store their settings independently.
  * toggling the panel in one desktop does not affect the state of the panel in other desktops.
 
 
-Panel - Statusbar
------------------
-
-The user can define an empty space (by default 18px) on the bottom or top(default) of the
-screen, to be used by a panel. The panel is toggleable, but will be visible if no windows
-are on the screen.
-
-Monsterwm does not provide a panel and/or statusbar itself. Instead it adheres
-to the [UNIX philosophy][unix] and outputs information about the existent
-desktop, the number of windows on each, the mode of each desktop, the current
-desktop and urgent hints whenever needed. The user can use whatever tool or
-panel suits him best (dzen2, conky, w/e), to process and display that information.
-
-To disable the panel completely set `PANEL_HEIGHT` to zero `0`.
-The `SHOW_PANELL` setting controls whether the panel is visible on startup,
-it does not control whether there is a panel or not.
-
-  [unix]: http://en.wikipedia.org/wiki/Unix_philosophy
-
-Here is a list of minimal and lightweight panels:
-
- * [`bar`](https://github.com/LemonBoy/bar)
- * [`some_sorta_bar`](https://github.com/moetunes/Some_sorta_bar)
- * [`bipolarbar`](https://github.com/moetunes/bipolarbar)
- * [`mopag`](https://github.com/c00kiemon5ter/mopag) (pager)
-
-You can find an examples configurations of panels [here](https://gist.github.com/1905427).
-You can actually parse monsterwm's output with any language you want,
-build anything you want, and display the information however you like.
-Do not be limited by those examples.
-
-
 Installation
 ------------
 
@@ -186,72 +156,14 @@ Build and install.
     # make clean install
 
 
-Patches
--------
-
-Some extensions to the code are supported in the form of patches.
-See other branches for the patch and code.
-Easiest way to apply a patch, is to `git merge` that branch.
-
-Currently:
-
- * [centerwindow]   : center new floating windows on the screen and  center any window with a shortcut
- * [fibonacci]      : adds fibonacci layout mode
- * [initlayouts]    : define initial layouts for every desktop
- * [monocleborders] : adds borders to the monocle layout
- * [nmaster]        : adds nmaster layout - multiple master windows for BSTACK and TILE layouts
- * [rectangle]      : draws only a rectangle when moving/resizing windows to keep resources low (ie through an ssh forwarded session)
- * [showhide]       : adds a function to show and hide all windows on all desktops
- * [uselessgaps]    : adds gaps around every window on screen
- * [warpcursor]     : cursors follows and is placed in the center of the current window
- * [windowtitles]   : along with the rest desktop info, output the title of the current window
-
-  [centerwindow]:   https://github.com/c00kiemon5ter/monsterwm/tree/centerwindow
-  [fibonacci]:      https://github.com/c00kiemon5ter/monsterwm/tree/fibonacci
-  [initlayouts]:    https://github.com/c00kiemon5ter/monsterwm/tree/initlayouts
-  [monocleborders]: https://github.com/c00kiemon5ter/monsterwm/tree/monocleborders
-  [nmaster]:        https://github.com/c00kiemon5ter/monsterwm/tree/nmaster
-  [rectangle]:      https://github.com/c00kiemon5ter/monsterwm/tree/rectangle
-  [showhide]:       https://github.com/c00kiemon5ter/monsterwm/tree/showhide
-  [uselessgaps]:    https://github.com/c00kiemon5ter/monsterwm/tree/uselessgaps
-  [warpcursor]:     https://github.com/c00kiemon5ter/monsterwm/tree/warpcursor
-  [windowtitles]:   https://github.com/c00kiemon5ter/monsterwm/tree/windowtitles
-
-There is also another branch, called [`core`].
-`core` is an even more stripped and minimal version of `monsterwm`,
-on top of which the `master` branch is built and extended.
-
-  [core]: https://github.com/c00kiemon5ter/monsterwm/tree/core
-
-The is also **xinerama** support for multiple monitors.
-
- * [xinerama-core][xc]   : the equivalent of `core` branch with xinerama support
- * [xinerama-master][xm] : the equivalent of `master` branch with xinerama support
- * [xinerama-init][xi]   : configurable initial values for each desktop on each monitor
-
- [xc]: https://github.com/c00kiemon5ter/monsterwm/tree/xinerama-core
- [xm]: https://github.com/c00kiemon5ter/monsterwm/tree/xinerama-master
- [xi]: https://github.com/c00kiemon5ter/monsterwm/tree/xinerama-init
-
-
-Bugs
-----
-
-For any bug or request [fill an issue][bug] on [GitHub][ghp] or report on the [ArchLinux topic][monsterwm]
-
-  [bug]: https://github.com/c00kiemon5ter/monsterwm/issues
-  [ghp]: https://github.com/c00kiemon5ter/monsterwm
-
-
 License
 -------
 
 Licensed under MIT/X Consortium License, see [LICENSE][law] file for more copyright and license information.
 
-  [law]: https://raw.github.com/c00kiemon5ter/monsterwm/master/LICENSE
 
-Thanks
-------
+Thanks (monsterwm)
+------------------
 
  * [the suckless team](http://suckless.org/)
  * [moetunes](https://github.com/moetunes)
@@ -265,5 +177,3 @@ Thanks
  * [mil](https://github.com/mil)
  * [dnuux](https://github.com/dnuux)
  * Matus Telgarsky
-
-

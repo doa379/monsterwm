@@ -23,7 +23,7 @@
 #define NOTIFY(body, urg, to) notify_send("mwm", body, urg, to)
 
 enum { RESIZE, MOVE };
-enum { TILE, MONOCLE, BSTACK, GRID, MODES };
+enum { MONOCLE, TILE, BSTACK, GRID, MODES };
 enum { WM_PROTOCOLS, WM_DELETE_WINDOW, WM_COUNT };
 enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, NET_WMNAME, NET_COUNT };
 
@@ -135,7 +135,7 @@ static void clientname(Client *);
 static void arrange(Desktop *, Monitor *, const int);
 static void listclients(Desktop *);
 
-static Bool running = True;
+static Bool running;
 static int nmons, currmonidx, retval;
 static unsigned int numlockmask, win_focus, win_unfocus, win_infocus;
 static Display *dpy;
