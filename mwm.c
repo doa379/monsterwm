@@ -17,15 +17,17 @@
 
 #define LENGTH(x)             (sizeof(x) / sizeof(*x))
 #define CLEANMASK(mask)       (mask & ~(numlockmask | LockMask))
-#define BUTTONMASK            ButtonPressMask|ButtonReleaseMask
+#define BUTTONMASK            ButtonPressMask | ButtonReleaseMask
 #define ISIMM(c)              (c->isfixed || c->istrans)
 #define ROOTMASK              SubstructureRedirectMask | ButtonPressMask | SubstructureNotifyMask | PropertyChangeMask
 #define NOTIFY(body, urg, to) notify_send("mwm", body, urg, to)
 
+enum { QUIT, RESTART };
 enum { RESIZE, MOVE };
 enum { MONOCLE, TILE, BSTACK, GRID, MODES };
 enum { WM_PROTOCOLS, WM_DELETE_WINDOW, WM_COUNT };
-enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, NET_WMNAME, NET_COUNT };
+enum { NET_SUPPORTED, NET_FULLSCREEN, NET_WM_STATE, NET_ACTIVE, 
+        NET_WMNAME, NET_WTYPE, NET_NOTIF, NET_UTIL, NET_COUNT };
 
 typedef union {
   const char **cmd;
@@ -115,6 +117,7 @@ static void grabkeys(void);
 static void grid(int, int, int, int, const Desktop *);
 static void keypress(XEvent *);
 static void maprequest(XEvent *);
+static void maprequest_window(Monitor *, Desktop *, Client *, Window, const XWindowAttributes *);
 static void monocle(int, int, int, int, const Desktop *);
 static Client *prevclient(Client *, Desktop *);
 static void propertynotify(XEvent *);
@@ -131,11 +134,12 @@ static int xerrorstart(Display *, XErrorEvent *);
 static void desktopinfo(const Monitor *);
 static void clientinfo(const Monitor *);
 static void coverfree(Client *, Desktop *, Monitor *);
+static void covercenter(Client *, Monitor *);
 static void clientname(Client *);
 static void arrange(Desktop *, Monitor *, const int);
 static void listclients(Desktop *);
 
-static Bool running;
+static Bool running = True;
 static int nmons, currmonidx, retval;
 static unsigned int numlockmask, win_focus, win_unfocus, win_infocus;
 static Display *dpy;
@@ -197,7 +201,8 @@ void buttonpress(XEvent *e) {
     ++cm;
 
   if (w && CLICK_TO_FOCUS && e->xbutton.button == FOCUS_BUTTON && (c != d->curr || cm != currmonidx)) {
-    if (cm != currmonidx) change_monitor(&(Arg){ .i = cm });
+    if (cm != currmonidx)
+      change_monitor(&(Arg){ .i = cm });
     focus(c, d, m);
   }
 
@@ -256,16 +261,17 @@ void change_monitor(const Arg *arg) {
 
 void cleanup(void) {
   XUngrabKey(dpy, AnyKey, AnyModifier, root);
-  if (retval) { /* quit */
+  if (retval == QUIT) {
     Window root_return, parent_return, *children;
     unsigned int nchildren;
     XQueryTree(dpy, root, &root_return, &parent_return, &children, &nchildren);
     for (unsigned int i = 0; i < nchildren; i++) 
       deletewindow(children[i]);
+    
     if (children)
       XFree(children);
-  } else { /* restart */
-    ;
+  } else if (retval == RESTART) {
+      ;
   }
 
   XSync(dpy, False);
@@ -458,22 +464,15 @@ void focus(Client *c, Desktop *d, Monitor *m) {
     d->prev = d->curr; 
     d->curr = c;
   }
-
-  int n = 0;
-  for (c = d->head; c; c = c->next, ++n);
-  Window W[n];
-  W[0] = d->curr->win;
-  n = 1;
+  
   for (c = d->head; c; c = c->next) {
     XSetWindowBorder(dpy, c->win, (c != d->curr) ? win_unfocus : (m == &mons[currmonidx]) ? win_focus : win_infocus);
     XSetWindowBorderWidth(dpy, c->win, c->isfull || c->ismono ? 0 : BORDER_WIDTH);
-    if (c != d->curr)
-      W[n++] = c->win;
     if (CLICK_TO_FOCUS || c == d->curr) 
       grabbuttons(c);
   }
-
-  XRestackWindows(dpy, W, n);
+  
+  XRaiseWindow(dpy, d->curr->win);
   XSetInputFocus(dpy, d->curr->win, RevertToPointerRoot, CurrentTime);
   XChangeProperty(dpy, root, netatoms[NET_ACTIVE], XA_WINDOW, 32, PropModeReplace, (unsigned char *) &d->curr->win, 1);
   XSync(dpy, False);
@@ -536,6 +535,7 @@ unsigned long getcolor(const char* color, const int screen) {
 void grabbuttons(Client *c) {
   Monitor *cm = &mons[currmonidx];
   unsigned int b, m, modifiers[] = { 0, LockMask, numlockmask, numlockmask | LockMask };
+
   for (m = 0; CLICK_TO_FOCUS && m < LENGTH(modifiers); m++)
     if (c != cm->desktops[cm->currdeskidx].curr) XGrabButton(dpy, FOCUS_BUTTON, modifiers[m],
         c->win, False, BUTTONMASK, GrabModeAsync, GrabModeAsync, None, None);
@@ -647,14 +647,18 @@ void last_desktop(void) {
 }
 
 void maprequest(XEvent *e) {
+  Window w = e->xmaprequest.window;
+  XWindowAttributes wa = { 0 };
   Monitor *m = NULL;
   Desktop *d = NULL;
   Client *c = NULL;
-  Window w = e->xmaprequest.window;
-  XWindowAttributes wa = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
   if (wintoclient(w, &c, &d, &m) || (XGetWindowAttributes(dpy, w, &wa) && wa.override_redirect))
     return;
 
+  maprequest_window(m, d, c, w, &wa);
+}
+
+void maprequest_window(Monitor *m, Desktop *d, Client *c, Window w, const XWindowAttributes *wa) {
   XClassHint ch = { 0, 0 };
   Bool follow = False;
   int newmon = currmonidx, newdsk = mons[currmonidx].currdeskidx;
@@ -676,17 +680,9 @@ void maprequest(XEvent *e) {
 
   c = addwindow(w, (d = &(m = &mons[newmon])->desktops[newdsk]));
   c->istrans = XGetTransientForHint(dpy, c->win, &w);
-  c->w = wa.width;
-  c->h = wa.height;
-  int i;
-  unsigned long l;
-  unsigned char *state = NULL;
-  Atom a;
-  if (XGetWindowProperty(dpy, c->win, netatoms[NET_WM_STATE], 0L, sizeof a, False, XA_ATOM, &a, &i, &l, &l, &state) == Success && state)
-    setfullscreen(c, m, (*(Atom *) state == netatoms[NET_FULLSCREEN]));
-  if (state)
-    XFree(state);
-
+  c->w = wa->width;
+  c->h = wa->height;
+  
   if (m->currdeskidx == newdsk)
     XMapWindow(dpy, c->win);
   if (follow) { 
@@ -694,48 +690,49 @@ void maprequest(XEvent *e) {
     change_desktop(&(Arg) { .i = newdsk });
   }
 
+  int i;
+  unsigned long l;
+  unsigned char *state = NULL;
+  Atom a;
+  if (XGetWindowProperty(dpy, c->win, netatoms[NET_WM_STATE], 0L, sizeof a, False, XA_ATOM, &a, &i, &l, &l, &state) == Success && state)
+    setfullscreen(c, m, (*(Atom *) state == netatoms[NET_FULLSCREEN]));
+
+  Bool isnotif = False;
+  if (XGetWindowProperty(dpy, c->win, netatoms[NET_WTYPE], 0L, sizeof a, False, XA_ATOM, &a, &i, &l, &l, &state) == Success && state)
+    if (*(Atom *) state == netatoms[NET_NOTIF] || *(Atom *) state == netatoms[NET_UTIL])
+      isnotif = True;
+
+  if (state)
+    XFree(state);
+
   coverfree(c, d, m);
+  if (isnotif)
+    covercenter(c, m);
+
   clientname(c);
   focus(c, d, m);
 }
 
-/**
- * handle resize and positioning of a window with the pointer.
- *
- * grab the pointer and get it's current position.
- * now, all pointer movement events will be reported until it is ungrabbed.
- *
- * while the mouse is pressed, grab interesting events (see button press,
- * button release, pointer motion).
- * on on pointer movement resize or move the window under the curson.
- * also handle map requests and configure requests.
- *
- * finally, on ButtonRelease, ungrab the poitner.
- * event handling is passed back to run() function.
- */
 void mousemotion(const Arg *arg) {
-  Monitor *m = &mons[currmonidx]; Desktop *d = &m->desktops[m->currdeskidx];
+  Monitor *m = &mons[currmonidx];
+  Desktop *d = &m->desktops[m->currdeskidx];
   XWindowAttributes wa;
   XEvent ev;
   Client *c = d->curr;
   if (!c || !XGetWindowAttributes(dpy, c->win, &wa))
     return;
-
-  if (arg->i == RESIZE) 
+  else if (arg->i == RESIZE)
     XWarpPointer(dpy, c->win, c->win, 0, 0, 0, 0, --wa.width, --wa.height);
-  
-  int rx, ry, co, xw, yh; unsigned int v; Window w;
+    
+  int rx, ry, co, xw, yh;
+  unsigned int v; Window w;
   if (!XQueryPointer(dpy, root, &w, &w, &rx, &ry, &co, &co, &v) || w != c->win)
     return;
 
-  if (XGrabPointer(dpy, root, False, BUTTONMASK|PointerMotionMask, GrabModeAsync,
+  if (XGrabPointer(dpy, root, False, BUTTONMASK | PointerMotionMask, GrabModeAsync,
         GrabModeAsync, None, None, CurrentTime) != GrabSuccess)
     return;
 
-  if (!c->istrans)
-    focus(c, d, m);
-
-  XRaiseWindow(dpy, c->win);
   do {
     XMaskEvent(dpy, BUTTONMASK | PointerMotionMask | SubstructureRedirectMask, &ev);
     if (ev.type == MotionNotify) {
@@ -745,7 +742,7 @@ void mousemotion(const Arg *arg) {
         XResizeWindow(dpy, c->win, xw > MINWSZ ? (c->w = xw) : (c->w = wa.width), 
             yh > MINWSZ ? (c->h = yh) : (c->h = wa.height));
       else if (arg->i == MOVE)
-        XMoveWindow(dpy, c->win, c->w = xw, c->h = yh);
+        XMoveWindow(dpy, c->win, c->x = xw, c->y = yh);
     } else if (ev.type == ConfigureRequest || ev.type == MapRequest)
         events[ev.type](&ev);
   } while (ev.type != ButtonRelease);
@@ -754,7 +751,7 @@ void mousemotion(const Arg *arg) {
 
 void monocle(int x, int y, int w, int h, const Desktop *d) {
   Client *c = d->curr;
-  if (c && (c->istrans || c->isfull))
+  if (!c || c->istrans || c->isfull)
     return;
   else if (!c->ismono) {
     XMoveResizeWindow(dpy, c->win, x, y, w, h);
@@ -766,7 +763,6 @@ void monocle(int x, int y, int w, int h, const Desktop *d) {
     c->ismono = False;
   }
 }
-
 /**
  * swap positions of current and next from current clients
  */
@@ -963,7 +959,6 @@ void rotate_filled(const Arg *arg) {
  */
 void run(void) {
   XEvent ev;
-  running = True;
   while (running && !XNextEvent(dpy, &ev)) 
     if (events[ev.type])
       events[ev.type](&ev);
@@ -1002,7 +997,7 @@ void setup(void) {
     };
 
     for (unsigned int d = 0; d < DESKTOPS; d++)
-      mons[m].desktops[d] = (Desktop){ .mode = 0 };
+      mons[m].desktops[d] = (Desktop) { .mode = 0 };
   }
 
   XFree(info);
@@ -1016,6 +1011,7 @@ void setup(void) {
     for (int j = 0; j < modmap->max_keypermod; j++)
       if (modmap->modifiermap[modmap->max_keypermod*k + j] == XKeysymToKeycode(dpy, XK_Num_Lock))
         numlockmask = (1 << k);
+  
   XFreeModifiermap(modmap);
   /* set up atoms for dialog/notification windows */
   wmatoms[WM_PROTOCOLS]     = XInternAtom(dpy, "WM_PROTOCOLS",     False);
@@ -1025,34 +1021,31 @@ void setup(void) {
   netatoms[NET_ACTIVE]      = XInternAtom(dpy, "_NET_ACTIVE_WINDOW",       False);
   netatoms[NET_FULLSCREEN]  = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False);
   netatoms[NET_WMNAME]      = XInternAtom(dpy, "_NET_WM_NAME", False);
+  netatoms[NET_WTYPE]       = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE", True);
+  netatoms[NET_NOTIF]       = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_NOTIFICATION", True);
+  netatoms[NET_UTIL]        = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_UTILITY", True);
   /* propagate EWMH support */
   XChangeProperty(dpy, root, netatoms[NET_SUPPORTED], XA_ATOM, 32, PropModeReplace, (unsigned char *) netatoms, NET_COUNT);
-  /* set the appropriate error handler
-   * try an action that will cause an error if another wm is active
-   * wait until events are processed to process the error from the above action
-   * if all is good set the generic error handler */
   XSetErrorHandler(xerrorstart);
   /* set masks for reporting events handled by the wm */
   XSelectInput(dpy, root, ROOTMASK);
   XSync(dpy, False);
   XSetErrorHandler(xerror);
-  /***
+  XSync(dpy, False);
+  grabkeys();
+
   Window root_return, parent_return, *children;
   unsigned int nchildren;
   XQueryTree(dpy, root, &root_return, &parent_return, &children, &nchildren);
   for (unsigned int i = 0; i < nchildren; i++) {
-    XEvent ev = { .type = MapRequest };
-    ev.xclient.window = children[i];
-    //ev.xclient.format = 32;
-    //ev.xclient.message_type = wmatoms[WM_PROTOCOLS];
-    //ev.xclient.data.l[0]    = wmatoms[WM_DELETE_WINDOW];
-    //ev.xclient.data.l[1]    = CurrentTime;
-    XSendEvent(dpy, children[i], False, ROOTMASK, &ev);
+    XWindowAttributes wa = { 0 };
+    XGetWindowAttributes(dpy, children[i], &wa);
+    if (wa.map_state == IsViewable)
+      maprequest_window(NULL, NULL, NULL, children[i], &wa);
   }
-
-  ***/
-  XSync(dpy, False);
-  grabkeys();
+  
+  if (children)
+    XFree(children);
 }
 
 void sigchld(__attribute__((unused)) int sig) {
@@ -1184,6 +1177,7 @@ Bool wintoclient(Window w, Client **c, Desktop **d, Monitor **m) {
   for (int cm = 0; cm < nmons && !*c; cm++)
     for (int cd = 0; cd < DESKTOPS && !*c; cd++)
       for (*m = &mons[cm], *d = &(*m)->desktops[cd], *c = (*d)->head; *c && (*c)->win != w; *c = (*c)->next);
+      
   return (*c != NULL);
 }
 
@@ -1219,14 +1213,11 @@ int main(int ARGC, char *ARGV[]) {
     errx(EXIT_FAILURE, "usage: man monsterwm");
   if (!(dpy = XOpenDisplay(NULL)))
     errx(EXIT_FAILURE, "cannot open display");
-  while (!retval) {
-    setup();
-    notify_send("mwm", "WM init", 2, 1000);
-    run();
-    cleanup();
-    notify_send("mwm", "WM deinit", 2, 1000);
-  }
-
+  setup();
+  NOTIFY("WM init", 2, 1000);
+  run();
+  cleanup();
+  NOTIFY("WM deinit", 2, 1000);
   XCloseDisplay(dpy);
   return retval;
 }
@@ -1310,6 +1301,12 @@ void coverfree(Client *c, Desktop *d, Monitor *m) {
   XMoveWindow(dpy, c->win, c->x, c->y);
 }
 
+void covercenter(Client *c, Monitor *m) {
+  c->x = m->w / 2 - c->w / 2;
+  c->y = m->h / 2 - c->h / 2;
+  XMoveWindow(dpy, c->win, c->x, c->y);
+}
+
 void setlayout(const Arg *arg) {
   Desktop *d = &mons[currmonidx].desktops[mons[currmonidx].currdeskidx];
   arrange(d, &mons[currmonidx], arg->i);
@@ -1353,6 +1350,8 @@ void to_client(const Arg *arg) {
   Client *c = d->head;
   int n = 1;
   for (; c && n != arg->i; c = c->next, n++);
-  focus(c, d, m);
-  listclients(d);
+  if (c) {
+    focus(c, d, m);
+    listclients(d);
+  }
 }

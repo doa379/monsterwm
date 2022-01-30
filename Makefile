@@ -22,9 +22,9 @@ CC 	 = cc
 SRC  = ${WMNAME}.c dbus.c
 OBJ  = ${SRC:.c=.o}
 
-all: ${WMNAME}
+all: ${WMNAME}.bin
 
-dbg: ${WMNAME}_dbg
+dbg: ${WMNAME}_dbg.bin
 
 options:
 	@echo ${WMNAME} build options:
@@ -38,28 +38,28 @@ config.h:
 	@echo creating $@ from config.def.h
 	@cp config.def.h $@
 
-${WMNAME}: $(OBJ)
+${WMNAME}.bin: $(OBJ)
 	@echo CC -c $(CFLAGS) -O3 -o $@
 	@${CC} $(CFLAGS) -O3 -o $@ ${OBJ} ${LDFLAGS} -s
 
-${WMNAME}_dbg: $(OBJ)
+${WMNAME}_dbg.bin: $(OBJ)
 	@echo CC -c $(CFLAGS) -O0 -g -o $@
 	@${CC} $(CFLAGS) -O0 -g -o $@ ${OBJ} ${LDFLAGS}
 
 clean:
 	@echo cleaning
-	@rm -fv ${WMNAME} $(WMNAME)_dbg ${OBJ} *.core
+	@rm -fv ${WMNAME}.bin $(WMNAME)_dbg.bin ${OBJ} *.core
 
 install: all
 	@echo installing executable file(s) to ${DESTDIR}${PREFIX}/bin
-	@install -Dm755 ${WMNAME} ${DESTDIR}${PREFIX}/bin/${WMNAME}
-	@install -Dm755 ${WMNAME}_dbg ${DESTDIR}${PREFIX}/bin/${WMNAME}
+	@install -Dm755 ${WMNAME}.bin ${DESTDIR}${PREFIX}/bin/${WMNAME}.bin
+	@install -Dm755 ${WMNAME}_dbg.bin ${DESTDIR}${PREFIX}/bin/${WMNAME}.bin
 	@echo installing manual page to ${DESTDIR}${MANPREFIX}/man.1
 	@install -Dm644 ${WMNAME}.1 ${DESTDIR}${MANPREFIX}/man1/${WMNAME}.1
 
 uninstall:
 	@echo removing executable file(s) from ${DESTDIR}${PREFIX}/bin
-	@rm -f ${DESTDIR}${PREFIX}/bin/${WMNAME} ${DESTDIR}${PREFIX}/bin/${WMNAME}_dbg
+	@rm -f ${DESTDIR}${PREFIX}/bin/${WMNAME}.bin ${DESTDIR}${PREFIX}/bin/${WMNAME}_dbg.bin
 	@echo removing manual page from ${DESTDIR}${MANPREFIX}/man1
 	@rm -f ${DESTDIR}${MANPREFIX}/man1/${WMNAME}.1
 
